@@ -19,8 +19,13 @@ CFLAGS += -I$(INCDIR_LIB)
 CFLAGS += -I$(INCDIR_PR)
 
 # Object files
-OBJS_SIM = $(BUILDDIR)/blinky.o $(BUILDDIR)/gpio_sim.o
-OBJS_RPI = $(BUILDDIR)/blinky.o $(BUILDDIR)/gpio.o
+OBJS_SIM = $(BUILDDIR)/blinky.o \
+           $(BUILDDIR)/gpio_sim.o \
+           $(BUILDDIR)/i2c_sim.o
+
+OBJS_RPI = $(BUILDDIR)/blinky.o \
+           $(BUILDDIR)/gpio.o    \
+           $(BUILDDIR)/i2c.o
 
 TARGET = $(BUILDDIR)/lib.so
 
@@ -57,12 +62,20 @@ $(BUILDDIR)/blinky.o: $(SRCDIR_PR)/blinky.c $(INCDIR_PR)/blinky.h
 	@echo "Compiling blinky.c"
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILDDIR)/gpio_sim.o: $(SRCDIR_LIB)/gpio_sim.c $(INCDIR_LIB)/gpio.h
+$(BUILDDIR)/gpio_sim.o: $(SRCDIR_LIB)/gpio_sim.c $(INCDIR_LIB)/cm4_gpio.h
 	@echo "Compiling gpio_sim.c"
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILDDIR)/gpio.o: $(SRCDIR_LIB)/gpio.c $(INCDIR_LIB)/gpio.h
+$(BUILDDIR)/gpio.o: $(SRCDIR_LIB)/gpio.c $(INCDIR_LIB)/cm4_gpio.h
 	@echo "Compiling gpio.c"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILDDIR)/i2c_sim.o: $(SRCDIR_LIB)/i2c_sim.c $(INCDIR_LIB)/i2c.h
+	@echo "Compiling i2c_sim.c"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILDDIR)/i2c.o: $(SRCDIR_LIB)/i2c.c $(INCDIR_LIB)/i2c.h
+	@echo "Compiling i2c.c"
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # -------------------------

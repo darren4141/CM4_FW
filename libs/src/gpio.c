@@ -1,4 +1,4 @@
-#include "gpio.h"
+#include "cm4_gpio.h"
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -14,16 +14,16 @@
 
 static volatile uint32_t *s_gpio_regs = NULL;
 
-int gpio_init(void) {
+StatusCode gpio_init(void) {
   if (s_gpio_regs != NULL) {
-    return 0; // already initialized
+    return STATUS_CODE_ALREADY_INITIALIZED; // already initialized
   }
 
   int fd = open("/dev/gpiomem", O_RDWR | O_SYNC);
 
   if (fd < 0) {
     perror("open /dev/gpiomem");
-    return -1;
+    return STATUS_CODE_MEM_ACCESS_FAILURE;
   }
 
   s_gpio_regs = (uint32_t *)mmap(NULL, GPIO_BLOCK_SIZE, PROT_READ | PROT_WRITE,
@@ -34,15 +34,15 @@ int gpio_init(void) {
   if (s_gpio_regs == MAP_FAILED) {
     perror("mmap");
     s_gpio_regs = NULL;
-    return -1;
+    return STATUS_CODE_INVALID_ARGS;
   }
 
-  return 0;
+  return STATUS_CODE_OK;
 }
 
-void gpio_set_mode(int pin, GpioMode mode) {
+StatusCode gpio_set_mode(int pin, GpioMode mode) {
   if (!s_gpio_regs || pin < 0 || pin > 53) {
-    return;
+    return STATUS_CODE_INVALID_ARGS;
   }
 
   int reg_index = GPFSEL0_INDEX + (pin / 10);
@@ -50,18 +50,15 @@ void gpio_set_mode(int pin, GpioMode mode) {
 
   uint32_t val = s_gpio_regs[reg_index];
   val &= ~(0b111 << shift);
-
-  if (mode == GPIO_MODE_OUTPUT) {
-    val |= (1U << shift);
-  } else {
-    // nothing
-  }
+  val |= (mode << shift);
   s_gpio_regs[reg_index] = val;
+
+  return STATUS_CODE_OK;
 }
 
-void gpio_write(int pin, int value) {
+StatusCode gpio_write(int pin, int value) {
   if (!s_gpio_regs || pin < 0 || pin > 53) {
-    return;
+    return STATUS_CODE_INVALID_ARGS;
   }
 
   if (value) {
@@ -73,15 +70,40 @@ void gpio_write(int pin, int value) {
     int reg_index = GPCLR0_INDEX + (pin / 32);
     s_gpio_regs[reg_index] = (1U << (pin % 32));
   }
+
+  return STATUS_CODE_OK;
 }
 
-int gpio_read(int pin) {
+StatusCode gpio_read(int pin, int *state) {
   if (!s_gpio_regs || pin < 0 || pin > 53) {
-    return -1;
+    return STATUS_CODE_INVALID_ARGS;
   }
 
   int reg_index = GPLEV0_INDEX + (pin / 32);
   uint32_t val = s_gpio_regs[reg_index];
 
-  return (val & (1U << (pin % 32))) ? 1 : 0;
+  *state = (val & (1U << (pin % 32))) ? 1 : 0;
+
+  return STATUS_CODE_OK
+}
+
+StatusCode gpio_toggle(int pin) {
+  if (!s_gpio_regs || pin < 0 || pin > 53) {
+    return STATUS_CODE_INVALID_ARGS;
+  }
+
+  int state;
+  StatusCode ret = gpio_read(pin, &state);
+  if (ret != STATUS_CODE_OK) {
+    perror("gpio_read failed with exit code: %u\n", ret);
+    return ret;
+  }
+
+  if (state == 1) {
+    ret = gpio_write(pin, 0);
+  } else if (state == 0) {
+    ret = gpio_write(pin, 1);
+  }
+
+  return ret;
 }

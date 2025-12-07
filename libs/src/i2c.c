@@ -6,7 +6,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include "gpio.h"
+#include "cm4_gpio.h"
 
 static volatile uint32_t *bsc1 = NULL;
 static volatile uint32_t *bsc2 = NULL;
@@ -31,6 +31,10 @@ StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
+  if (bsc != NULL) {
+    return STATUS_CODE_ALREADY_INITIALIZED;
+  }
+
   bsc = (uint32_t *)mmap(NULL, BSC_LEN, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
                          phys_base);
   close(fd);
@@ -39,11 +43,11 @@ StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz) {
   }
 
   if (i2c_bus == I2C_BUS_1) {
-    gpio_set_mode(2, GPIO_ALT0);
-    gpio_set_mode(3, GPIO_ALT0);
+    gpio_set_mode(2, GPIO_MODE_ALT0);
+    gpio_set_mode(3, GPIO_MODE_ALT0);
   } else if (i2c_bus == I2C_BUS_2) {
-    gpio_set_mode(4, GPIO_ALT5);
-    gpio_set_mode(5, GPIO_ALT5);
+    gpio_set_mode(4, GPIO_MODE_ALT5);
+    gpio_set_mode(5, GPIO_MODE_ALT5);
   } else {
     return STATUS_CODE_INVALID_ARGS;
   }
@@ -60,7 +64,6 @@ StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz) {
 }
 
 StatusCode i2c_deinit(I2cBus i2c_bus) {
-
   uint32_t *bsc = NULL;
 
   if (i2c_bus == I2C_BUS_1) {
@@ -92,7 +95,11 @@ int i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf, uint32_t len) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
-  if (!bsc || bsc == MAP_FAILED || !addr || !buf || !len) {
+  if (!bsc) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  if (bsc == MAP_FAILED || !addr || !buf || !len) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -144,7 +151,11 @@ StatusCode i2c_read(I2cBus i2c_bus, uint8_t addr, uint8_t *buf, uint32_t len) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
-  if (!bsc || bsc == MAP_FAILED || !addr || !buf || !len) {
+  if (!bsc) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  if (bsc == MAP_FAILED || !addr || !buf || !len) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
