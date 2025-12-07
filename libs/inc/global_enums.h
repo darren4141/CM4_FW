@@ -1,0 +1,10 @@
+#pragma once
+
+#define CORE_FREQ_HZ 150000000
+
+typedef enum {
+  STATUS_CODE_OK = 0,
+  STATUS_CODE_INVALID_ARGS = -1,
+  STATUS_CODE_MEM_ACCESS_FAILURE = -2,
+  STATUS_CODE_FAILED = -3,
+} StatusCode

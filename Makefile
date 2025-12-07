@@ -14,7 +14,7 @@ SRCDIR_PR  = $(PROJECT)/src
 SRCDIR_LIB = $(LIB)/src
 BUILDDIR   = build
 
-# Include path for gpio.h (in lib/inc)
+# Include path for .h files
 CFLAGS += -I$(INCDIR_LIB)
 CFLAGS += -I$(INCDIR_PR)
 
