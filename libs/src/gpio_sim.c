@@ -16,8 +16,12 @@ StatusCode gpio_init(void) {
 }
 
 StatusCode gpio_set_mode(int pin, GpioMode mode) {
-  if (!s_gpio_regs || pin < 0 || pin > 53) {
-    return STATUS_CODE_INVALID_ARGS;
+  if (!s_gpio_regs) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  if (pin < 0 || pin > 53) {
+    return STATUS_CODE_ARGS_OUT_OF_RANGE;
   }
 
   pin_modes[pin] = mode;
@@ -26,8 +30,12 @@ StatusCode gpio_set_mode(int pin, GpioMode mode) {
 }
 
 StatusCode gpio_write(int pin, int value) {
-  if (!s_gpio_regs || pin < 0 || pin > 53) {
-    return STATUS_CODE_INVALID_ARGS;
+  if (!s_gpio_regs) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  if (pin < 0 || pin > 53) {
+    return STATUS_CODE_ARGS_OUT_OF_RANGE;
   }
 
   pin_values[pin] = value;
@@ -36,8 +44,12 @@ StatusCode gpio_write(int pin, int value) {
 }
 
 StatusCode gpio_read(int pin, int *state) {
-  if (!s_gpio_regs || pin < 0 || pin > 53) {
-    return STATUS_CODE_INVALID_ARGS;
+  if (!s_gpio_regs) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  if (pin < 0 || pin > 53) {
+    return STATUS_CODE_ARGS_OUT_OF_RANGE;
   }
 
   printf("[SIM] Read pin %d = %d\n", pin, pin_values[pin]);
@@ -46,8 +58,12 @@ StatusCode gpio_read(int pin, int *state) {
 }
 
 StatusCode gpio_toggle(int pin) {
-  if (!s_gpio_regs || pin < 0 || pin > 53) {
-    return STATUS_CODE_INVALID_ARGS;
+  if (!s_gpio_regs) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  if (pin < 0 || pin > 53) {
+    return STATUS_CODE_ARGS_OUT_OF_RANGE;
   }
 
   pin_values[pin] = !pin_values[pin];

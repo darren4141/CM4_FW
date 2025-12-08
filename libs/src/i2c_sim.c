@@ -1,4 +1,4 @@
-#include "i2c.h"
+#include "cm4_i2c.h"
 
 #include <stdio.h>
 
@@ -84,6 +84,13 @@ StatusCode i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf,
   }
   printf("at address: %u on bus: %u\n", addr, i2c_bus);
   return STATUS_CODE_OK;
+}
+
+StatusCode i2c_write_byte(I2cBus i2c_bus, uint8_t addr, uint8_t data) {
+  uint8_t data_buf[1];
+  data_buf[0] = data;
+  StatusCode ret = i2c_write(i2c_bus, addr, data_buf, 1);
+  return ret;
 }
 
 StatusCode i2c_read(I2cBus i2c_bus, uint8_t addr, uint8_t *buf, uint32_t len) {

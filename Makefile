@@ -70,11 +70,11 @@ $(BUILDDIR)/gpio.o: $(SRCDIR_LIB)/gpio.c $(INCDIR_LIB)/cm4_gpio.h
 	@echo "Compiling gpio.c"
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILDDIR)/i2c_sim.o: $(SRCDIR_LIB)/i2c_sim.c $(INCDIR_LIB)/i2c.h
+$(BUILDDIR)/i2c_sim.o: $(SRCDIR_LIB)/i2c_sim.c $(INCDIR_LIB)/cm4_i2c.h
 	@echo "Compiling i2c_sim.c"
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(BUILDDIR)/i2c.o: $(SRCDIR_LIB)/i2c.c $(INCDIR_LIB)/i2c.h
+$(BUILDDIR)/i2c.o: $(SRCDIR_LIB)/i2c.c $(INCDIR_LIB)/cm4_i2c.h
 	@echo "Compiling i2c.c"
 	$(CC) $(CFLAGS) -c $< -o $@
 

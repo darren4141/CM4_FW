@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "gpio.h"
+#include "cm4_gpio.h"
 
 static int state = 0;
 static int led_pin = 17;

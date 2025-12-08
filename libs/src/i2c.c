@@ -1,4 +1,4 @@
-#include "i2c.h"
+#include "cm4_i2c.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -83,7 +83,8 @@ StatusCode i2c_deinit(I2cBus i2c_bus) {
   return STATUS_CODE_OK;
 }
 
-int i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf, uint32_t len) {
+StatusCode i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf,
+                     uint32_t len) {
   uint32_t *bsc = NULL;
 
   if (i2c_bus == I2C_BUS_1) {
@@ -137,6 +138,13 @@ int i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf, uint32_t len) {
 
   bsc[BSC_S] = S_CLKT | S_ERR | S_DONE; // clear flags
   return rc == 0 ? STATUS_CODE_OK : STATUS_CODE_FAILED;
+}
+
+StatusCode i2c_write_byte(I2cBus i2c_bus, uint8_t addr, uint8_t data) {
+  uint8_t data_buf[1];
+  data_buf[0] = data;
+  StatusCode ret = i2c_write(i2c_bus, addr, data_buf, 1);
+  return ret;
 }
 
 StatusCode i2c_read(I2cBus i2c_bus, uint8_t addr, uint8_t *buf, uint32_t len) {
