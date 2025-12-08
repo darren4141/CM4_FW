@@ -21,11 +21,14 @@ CFLAGS += -I$(INCDIR_PR)
 # Object files
 OBJS_SIM = $(BUILDDIR)/blinky.o \
            $(BUILDDIR)/gpio_sim.o \
-           $(BUILDDIR)/i2c_sim.o
+           $(BUILDDIR)/i2c_sim.o \
+           $(BUILDDIR)/pwm_controller.o 
+
 
 OBJS_RPI = $(BUILDDIR)/blinky.o \
            $(BUILDDIR)/gpio.o    \
-           $(BUILDDIR)/i2c.o
+           $(BUILDDIR)/i2c.o	\
+           $(BUILDDIR)/pwm_controller.o 
 
 TARGET = $(BUILDDIR)/lib.so
 
@@ -76,6 +79,10 @@ $(BUILDDIR)/i2c_sim.o: $(SRCDIR_LIB)/i2c_sim.c $(INCDIR_LIB)/cm4_i2c.h
 
 $(BUILDDIR)/i2c.o: $(SRCDIR_LIB)/i2c.c $(INCDIR_LIB)/cm4_i2c.h
 	@echo "Compiling i2c.c"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILDDIR)/pwm_controller.o: $(SRCDIR_LIB)/pwm_controller.c $(INCDIR_LIB)/pwm_controller.h
+	@echo "Compiling pwm_controller.c"
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # -------------------------

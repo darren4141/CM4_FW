@@ -4,7 +4,7 @@
 
 #include "global_enums.h"
 
-#define REG_SIZE_BITS 8
+#define PCA_REG_SIZE_BITS 8
 
 #define PCA9685_LEN 0xFF
 #define PCA_I2C_ADDR 0x47

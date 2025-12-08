@@ -1,4 +1,5 @@
 #include "pwm_controller.h"
+
 #include "cm4_i2c.h"
 
 #define PCA_WRITE_REG(reg, val)                                                \
@@ -11,7 +12,7 @@ StatusCode pwm_controller_init(uint32_t pwm_freq) {
 
   StatusCode ret = i2c_init(I2C_BUS_2, PCA_I2C_HZ);
   if (ret != STATUS_CODE_OK && ret != STATUS_CODE_ALREADY_INITIALIZED) {
-    perror("i2c_init() failed with exit code: %u\n", ret);
+    printf("i2c_init() failed with exit code: %u\n", ret);
     return ret;
   }
 
@@ -22,6 +23,8 @@ StatusCode pwm_controller_init(uint32_t pwm_freq) {
   PCA_WRITE_REG(PCA_PRE_SCALE, prescale_val);
   PCA_WRITE_REG(PCA_MODE1, MODE1_AI & ~MODE1_SLEEP);
   PCA_WRITE_REG(PCA_MODE2, MODE2_OUTDRV);
+
+  return STATUS_CODE_OK;
 }
 
 StatusCode pwm_controller_start_channel(PCAChannel channel,

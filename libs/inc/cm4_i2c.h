@@ -4,7 +4,7 @@
 
 #include "global_enums.h"
 
-#define REG_SIZE_BITS 32
+#define BSC_REG_SIZE_BITS 32
 
 #define PERIPH_BASE 0xFE000000UL
 #define BSC1_BASE (PERIPH_BASE + 0x804000)

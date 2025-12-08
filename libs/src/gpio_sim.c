@@ -1,12 +1,12 @@
 #include "cm4_gpio.h"
 #include <stdio.h>
 
-static int s_gpio_regs = NULL;
+static int s_gpio_regs = 0;
 static int pin_modes[40];
 static int pin_values[40];
 
 StatusCode gpio_init(void) {
-  if (s_gpio_regs != NULL) {
+  if (s_gpio_regs != 0) {
     return STATUS_CODE_ALREADY_INITIALIZED; // already initialized
   }
 

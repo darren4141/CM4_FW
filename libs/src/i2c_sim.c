@@ -25,7 +25,7 @@ StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz) {
     return STATUS_CODE_ALREADY_INITIALIZED;
   }
 
-  bsc = 1;
+  *bsc = 1U;
 
   if (i2c_bus == I2C_BUS_1) {
     gpio_set_mode(2, GPIO_MODE_ALT0);
