@@ -21,7 +21,7 @@ StatusCode gpio_set_mode(int pin, GpioMode mode) {
   }
 
   if (pin < 0 || pin > 53) {
-    return STATUS_CODE_ARGS_OUT_OF_RANGE;
+    return STATUS_CODE_INVALID_ARGS;
   }
 
   pin_modes[pin] = mode;
@@ -35,7 +35,7 @@ StatusCode gpio_write(int pin, int value) {
   }
 
   if (pin < 0 || pin > 53) {
-    return STATUS_CODE_ARGS_OUT_OF_RANGE;
+    return STATUS_CODE_INVALID_ARGS;
   }
 
   pin_values[pin] = value;
@@ -49,7 +49,7 @@ StatusCode gpio_read(int pin, int *state) {
   }
 
   if (pin < 0 || pin > 53) {
-    return STATUS_CODE_ARGS_OUT_OF_RANGE;
+    return STATUS_CODE_INVALID_ARGS;
   }
 
   printf("[SIM] Read pin %d = %d\n", pin, pin_values[pin]);
@@ -63,7 +63,7 @@ StatusCode gpio_toggle(int pin) {
   }
 
   if (pin < 0 || pin > 53) {
-    return STATUS_CODE_ARGS_OUT_OF_RANGE;
+    return STATUS_CODE_INVALID_ARGS;
   }
 
   pin_values[pin] = !pin_values[pin];

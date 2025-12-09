@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 #include "global_enums.h"
 #include "pwm_controller.h"
 
@@ -31,11 +33,27 @@ typedef enum {
 
 #define D_ANGLE MAX_ANGLE_DEGREES - MIN_ANGLE_DEGREES
 
+#define SERVO_THREAD_FREQ_HZ 1000
+#define SERVO_THREAD_PERIOD_S 1 / SERVO_THREAD_FREQ_HZ
+#define SERVO_MAX_SPEED_DEG_S 360
+#define SERV_MAX_STEP SERVO_MAX_SPEED_DEG_S / SERVO_THREAD_FREQ_HZ
+
+typedef struct {
+  ServoChannel channel;
+  bool isRunning;
+  float current_angle;
+  float target_angle;
+  float step;
+} Servo;
+
 StatusCode servo_init();
+
+StatusCode servo_deinit();
 
 StatusCode servo_get(ServoChannel channel, float *angle);
 
 StatusCode servo_set_angle(ServoChannel channel, float angle);
 
+/* angular_velocity is measured in turns per second*/
 StatusCode servo_move_smooth(ServoChannel channel, float angle,
-                             int step_delay_ms);
+                             float angular_velocity);

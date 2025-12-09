@@ -46,7 +46,7 @@ StatusCode gpio_set_mode(int pin, GpioMode mode) {
   }
 
   if (pin < 0 || pin > 53) {
-    return STATUS_CODE_ARGS_OUT_OF_RANGE;
+    return STATUS_CODE_INVALID_ARGS;
   }
 
   int reg_index = GPFSEL0_INDEX + (pin / 10);
@@ -66,7 +66,7 @@ StatusCode gpio_write(int pin, int value) {
   }
 
   if (pin < 0 || pin > 53) {
-    return STATUS_CODE_ARGS_OUT_OF_RANGE;
+    return STATUS_CODE_INVALID_ARGS;
   }
 
   if (value) {
@@ -88,7 +88,7 @@ StatusCode gpio_read(int pin, int *state) {
   }
 
   if (pin < 0 || pin > 53) {
-    return STATUS_CODE_ARGS_OUT_OF_RANGE;
+    return STATUS_CODE_INVALID_ARGS;
   }
 
   int reg_index = GPLEV0_INDEX + (pin / 32);
@@ -105,7 +105,7 @@ StatusCode gpio_toggle(int pin) {
   }
 
   if (pin < 0 || pin > 53) {
-    return STATUS_CODE_ARGS_OUT_OF_RANGE;
+    return STATUS_CODE_INVALID_ARGS;
   }
 
   int state;

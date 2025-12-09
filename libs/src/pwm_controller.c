@@ -7,7 +7,7 @@
 
 StatusCode pwm_controller_init(uint32_t pwm_freq) {
   if (pwm_freq < 24 || pwm_freq > 1526) {
-    return STATUS_CODE_ARGS_OUT_OF_RANGE;
+    return STATUS_CODE_INVALID_ARGS;
   }
 
   StatusCode ret = i2c_init(I2C_BUS_2, PCA_I2C_HZ);
@@ -31,7 +31,7 @@ StatusCode pwm_controller_set_channel(PCAChannel channel,
                                       float delay_percentage,
                                       float duty_cycle) {
   if (delay_percentage + duty_cycle > 1.0f) {
-    return STATUS_CODE_ARGS_OUT_OF_RANGE;
+    return STATUS_CODE_INVALID_ARGS;
   }
 
   uint16_t high_start = delay_percentage * PWM_RESOLUTION;

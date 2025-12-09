@@ -11,11 +11,11 @@
 #define PCA_I2C_HZ KHZ(100)
 
 #define PCA_DEFAULT_FREQ MHZ(25)
+#define PWM_RESOLUTION 4096
 
 // Core control registers
 #define PCA_MODE1 0x00
 #define PCA_MODE2 0x01
-#define PWM_RESOLUTION 4096
 
 #define MODE1_RESTART (1U << 7)
 #define MODE1_EXTCLK (1U << 6)
