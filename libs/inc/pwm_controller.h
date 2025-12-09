@@ -49,9 +49,11 @@ typedef enum {
   PCA_LED3_ON_L = 0x12,
   PCA_LED4_ON_L = 0x16,
   PCA_LED5_ON_L = 0x1A,
+  INVALID_PCA_CHANNEL = -1,
 } PCAChannel;
 
 #define LEDX_FULL_OFF (1U << 4)
+#define LEDX_FULL_ON (1U << 4)
 
 // "All LED" broadcast PWM registers
 #define PCA_ALL_LED_ON_L 0xFA
@@ -65,8 +67,11 @@ typedef enum {
 
 StatusCode pwm_controller_init(uint32_t pwm_freq);
 
-StatusCode pwm_controller_start_channel(PCAChannel channel,
-                                        float delay_percentage,
-                                        float duty_cycle);
+StatusCode pwm_controller_set_channel(PCAChannel channel,
+                                      float delay_percentage, float duty_cycle);
 
+/*Sets pwm channel to 0% duty cycle*/
 StatusCode pwm_controller_stop_channel(PCAChannel channel);
+
+/*Sets pwm channel to 100% duty cycle*/
+StatusCode pwm_controller_digital_set_channel(PCAChannel channel);
