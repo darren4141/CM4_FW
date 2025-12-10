@@ -17,29 +17,32 @@ StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz) {
     return STATUS_CODE_MEM_ACCESS_FAILURE;
   }
 
-  uint32_t *bsc = NULL;
+  volatile uint32_t **bsc_ptr = NULL;
   int phys_base;
 
   if (i2c_bus == I2C_BUS_1) {
-    bsc = bsc1;
+    bsc_ptr = &bsc1;
     phys_base = BSC1_BASE;
   } else if (i2c_bus == I2C_BUS_2) {
-    bsc = bsc2;
+    bsc_ptr = &bsc2;
     phys_base = BSC2_BASE;
   } else {
     perror("phys_base");
+    close(fd);
     return STATUS_CODE_INVALID_ARGS;
   }
 
-  if (bsc != NULL) {
+  if (*bsc_ptr != NULL) {
+    close(fd);
     return STATUS_CODE_ALREADY_INITIALIZED;
   }
 
-  bsc = (uint32_t *)mmap(NULL, BSC_LEN, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-                         phys_base);
+  *bsc_ptr = (uint32_t *)mmap(NULL, BSC_LEN, PROT_READ | PROT_WRITE, MAP_SHARED,
+                              fd, phys_base);
   close(fd);
-  if (bsc == MAP_FAILED) {
-    return -1;
+  if (*bsc_ptr == MAP_FAILED) {
+    *bsc_ptr = NULL;
+    return STATUS_CODE_MEM_ACCESS_FAILURE;
   }
 
   if (i2c_bus == I2C_BUS_1) {
@@ -58,7 +61,7 @@ StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz) {
     cdiv = 2;
   }
 
-  bsc[BSC_DIV] = cdiv;
+  *bsc_ptr[BSC_DIV] = cdiv;
 
   return STATUS_CODE_OK;
 }
@@ -129,11 +132,11 @@ StatusCode i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf,
 
   if (bsc[BSC_S] & S_ERR) {
     rc = -2; // NACK
-    perror("i2c failure code -2")
+    perror("i2c failure code -2");
   }
   if (bsc[BSC_S] & S_CLKT) {
     rc = -3; // clock stretch timeout
-    perror("i2c failure code -3")
+    perror("i2c failure code -3");
   }
 
   bsc[BSC_S] = S_CLKT | S_ERR | S_DONE; // clear flags
@@ -198,6 +201,88 @@ StatusCode i2c_read(I2cBus i2c_bus, uint8_t addr, uint8_t *buf, uint32_t len) {
   if (bsc[BSC_S] & S_CLKT) {
     rc = -3; // clock stretch timeout
     perror("i2c failure code -3")
+  }
+
+  bsc[BSC_S] = S_CLKT | S_ERR | S_DONE; // clear flags
+  return rc == 0 ? STATUS_CODE_OK : STATUS_CODE_FAILED;
+}
+
+StatusCode i2c_write_then_read(I2cBus i2c_bus, uint8_t addr,
+                               const uint8_t *write_buf, uint32_t write_len,
+                               const uint8_t *read_buf, uint32_t read_len) {
+  uint32_t *bsc = NULL;
+
+  if (i2c_bus == I2C_BUS_1) {
+    bsc = bsc1;
+  } else if (i2c_bus == I2C_BUS_2) {
+    bsc = bsc2;
+  } else {
+    perror("i2c_bus");
+    return STATUS_CODE_INVALID_ARGS;
+  }
+
+  if (!bsc) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  if (bsc == MAP_FAILED || !addr || !write_buf || !read_buf) {
+    return STATUS_CODE_INVALID_ARGS;
+  }
+
+  if (write_len > 16) {
+    // Not invalid but implementation is harder. will implement if needed
+    return STATUS_CODE_INVALID_ARGS;
+  }
+
+  bsc[BSC_C] = C_I2CEN | C_CLEAR;
+  bsc[BSC_S] = S_CLKT | S_ERR | S_DONE; // clear sticky flags
+
+  bsc[BSC_A] = addr;
+  bsc[BSC_DLEN] = write_len;
+
+  for (uint32_t i = 0; i < write_len; i++) {
+    while (!(bsc[BSC_S] & S_TXD)) {
+      // wait for FIFO ready
+    }
+    bsc[BSC_FIFO] = write_buf[i];
+  }
+
+  bsc[BSC_C] = C_I2CEN | C_ST;
+
+  while (!(bsc[BSC_S] & S_TA)) {
+    if (bsc[BSC_S] & (S_ERR | S_CLKT)) {
+      bsc[BSC_S] = S_CLKT | S_ERR | S_DONE; // clear sticky flags
+      return STATUS_CODE_FAILED;
+    }
+  }
+
+  bsc[BSC_DLEN] = read_len;
+
+  bsc[BSC_C] = C_I2CEN | C_ST | C_READ;
+
+  uint32_t idx = 0;
+
+  while (!(bsc[BSC_S] & (S_DONE | S_ERR | S_CLKT))) {
+    while (idx < read_len && (bsc[BSC_S] & S_RXD)) {
+      read_buf[idx] = bsc[BSC_FIFO] & 0xFF;
+      idx++;
+    }
+  }
+
+  while (idx < read_len && (bsc[BSC_S] & S_RXD)) {
+    read_buf[idx] = bsc[BSC_FIFO] & 0xFF;
+    idx++;
+  }
+
+  int rc = 0;
+
+  if (bsc[BSC_S] & S_ERR) {
+    rc = -2; // NACK
+    perror("i2c failure code -2");
+  }
+  if (bsc[BSC_S] & S_CLKT) {
+    rc = -3; // clock stretch timeout
+    perror("i2c failure code -3");
   }
 
   bsc[BSC_S] = S_CLKT | S_ERR | S_DONE; // clear flags

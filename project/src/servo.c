@@ -1,14 +1,15 @@
 #include "servo.h"
 
 #include <pthread.h>
+#include <time.h>
 
 static uint8_t initialized = 0;
 static Servo servo[NUM_SERVO_CHANNELS];
-static bool servo_thread_running = false;
+static volatile bool servo_thread_running = false;
 static pthread_t servo_thread;
 
-struct timespec ts = {.tv_sec = 0,
-                      .tv_nsec = SERVO_THREAD_PERIOD_S * 1000 * 1000 * 1000};
+static struct timespec ts = {
+    .tv_sec = 0, .tv_nsec = SERVO_THREAD_PERIOD_S * 1000 * 1000 * 1000};
 
 static void servo_update_all();
 static void servo_update(Servo *servo);

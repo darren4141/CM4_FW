@@ -1,16 +1,10 @@
 #include "cm4_gpio.h"
 
 #include <fcntl.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <sys/mman.h>
 #include <unistd.h>
-
-#define GPIO_BLOCK_SIZE 4096
-
-#define GPFSEL0_INDEX 0 // 0x00 / 4
-#define GPSET0_INDEX 7  // 0x1C / 4
-#define GPCLR0_INDEX 10 // 0x28 / 4
-#define GPLEV0_INDEX 13 // 0x34 / 4
 
 static volatile uint32_t *s_gpio_regs = NULL;
 
@@ -60,6 +54,56 @@ StatusCode gpio_set_mode(int pin, GpioMode mode) {
   return STATUS_CODE_OK;
 }
 
+StatusCode gpio_set_edge(int pin, GpioEdge edge) {
+  if (!s_gpio_regs) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  if (pin < 0 || pin > 53) {
+    return STATUS_CODE_INVALID_ARGS;
+  }
+
+  uint8_t bank;
+
+  if (pin >= 32) {
+    bank = 1;
+  } else {
+    bank = 0;
+  }
+
+  uint8_t bit = pin % 32;
+  uint32_t mask = (1U << bit);
+
+  uint8_t ren_index = GPREN0_INDEX + bank;
+  uint8_t fen_index = GPFEN0_INDEX + bank;
+  uint8_t eds_index = GPEDS0_INDEX + bank;
+
+  // clear pending event
+  s_gpio_regs[eds_index] = mask;
+
+  uint32_t ren = s_gpio_regs[ren_index];
+  uint32_t fen = s_gpio_regs[fen_index];
+
+  // clear existing config
+
+  if (edge == GPIO_EDGE_RISING) {
+    ren |= mask;
+  } else if (edge == GPIO_EDGE_FALLING) {
+    ren |= mask;
+    fen |= maskl
+  } else if (edge == GPIO_EDGE_BOTH) {
+    ren |= mask;
+    fen |= maskl
+  } else {
+    // nothing to do
+  }
+
+  s_gpio_regs[ren_index] = ren;
+  s_gpio_regs[fen_index] = fen;
+
+  return STATUS_CODE_OK;
+}
+
 StatusCode gpio_write(int pin, int value) {
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
@@ -96,7 +140,7 @@ StatusCode gpio_read(int pin, int *state) {
 
   *state = (val & (1U << (pin % 32))) ? 1 : 0;
 
-  return STATUS_CODE_OK
+  return STATUS_CODE_OK;
 }
 
 StatusCode gpio_toggle(int pin) {
@@ -111,7 +155,7 @@ StatusCode gpio_toggle(int pin) {
   int state;
   StatusCode ret = gpio_read(pin, &state);
   if (ret != STATUS_CODE_OK) {
-    perror("gpio_read failed with exit code: %u\n", ret);
+    printf("gpio_read failed with exit code: %u\n", ret);
     return ret;
   }
 
@@ -122,4 +166,37 @@ StatusCode gpio_toggle(int pin) {
   }
 
   return ret;
+}
+
+StatusCode gpio_get_edge_event(int pin, int *event) {
+  if (!s_gpio_regs) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  if (pin < 0 || pin > 53) {
+    return STATUS_CODE_INVALID_ARGS;
+  }
+
+  uint8_t bank;
+
+  if (pin >= 32) {
+    bank = 1;
+  } else {
+    bank = 0;
+  }
+
+  uint8_t bit = pin % 32;
+  uint32_t mask = (1U << bit);
+
+  uint8_t eds_index = GPEDS0_INDEX + bank;
+
+  uint32_t eds = s_gpio_regs[eds_index];
+
+  if (eds & mask) {
+    *event = 1;
+  } else {
+    event = 0;
+  }
+
+  return STATUS_CODE_OK;
 }
