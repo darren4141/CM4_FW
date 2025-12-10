@@ -44,6 +44,13 @@ typedef enum {
    : (x) == GPIO_MODE_ALT5   ? "ALT5"                                          \
                              : "UNKNOWN")
 
+#define EDGE_TO_STR(x)                                                         \
+  ((x) == GPIO_EDGE_NONE      ? "NONE"                                         \
+   : (x) == GPIO_EDGE_RISING  ? "RISING"                                       \
+   : (x) == GPIO_EDGE_FALLING ? "FALLING"                                      \
+   : (x) == GPIO_EDGE_BOTH    ? "BOTH"                                         \
+                              : "UNKNOWN")
+
 StatusCode gpio_init(void);
 
 StatusCode gpio_set_mode(int pin, GpioMode mode);

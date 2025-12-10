@@ -5,7 +5,7 @@
 #define MX_IS1 0x00
 #define MX_IS2 0x01
 #define MX_IE1 0x02
-#define MX_IS2 0x03
+#define MX_IE2 0x03
 
 #define MX_FIFO_WR 0x04
 #define MX_OVF_COUNTER 0x05

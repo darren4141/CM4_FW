@@ -2,6 +2,7 @@
 
 #include <pthread.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <time.h>
 
 #include "cm4_gpio.h"
@@ -50,8 +51,8 @@ StatusCode irled_init() {
   }
 
   is_thread_running = true;
-  int ret = pthread_create(&edge_thread, NULL, edge_thread_func, NULL);
-  if (ret != 0) {
+  int threadRet = pthread_create(&edge_thread, NULL, edge_thread_func, NULL);
+  if (threadRet != 0) {
     is_thread_running = false;
     return STATUS_CODE_THREAD_FAILURE;
   }

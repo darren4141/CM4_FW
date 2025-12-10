@@ -1,5 +1,7 @@
 #include "pwm_controller.h"
 
+#include <stdio.h>
+
 #include "cm4_i2c.h"
 
 #define PCA_WRITE_REG(reg, val)                                                \

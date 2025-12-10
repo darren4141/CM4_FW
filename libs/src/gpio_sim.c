@@ -70,3 +70,31 @@ StatusCode gpio_toggle(int pin) {
   printf("[SIM] Pin %d -> %d\n", pin, pin_values[pin]);
   return STATUS_CODE_OK;
 }
+
+StatusCode gpio_set_edge(int pin, GpioEdge edge) {
+  if (!s_gpio_regs) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  if (pin < 0 || pin > 53) {
+    return STATUS_CODE_INVALID_ARGS;
+  }
+
+  printf("[SIM] Set pin %d edge %s\n", pin, EDGE_TO_STR(edge));
+  return STATUS_CODE_OK;
+}
+
+StatusCode gpio_get_edge_event(int pin, int *event) {
+  if (!s_gpio_regs) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  if (pin < 0 || pin > 53) {
+    return STATUS_CODE_INVALID_ARGS;
+  }
+
+  *event = 1;
+
+  printf("[SIM] Pin %d = %d\n", pin, *event);
+  return STATUS_CODE_OK;
+}

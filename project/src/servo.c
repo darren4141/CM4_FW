@@ -1,7 +1,9 @@
 #include "servo.h"
 
 #include <pthread.h>
+#include <stdio.h>
 #include <time.h>
+
 
 static uint8_t initialized = 0;
 static Servo servo[NUM_SERVO_CHANNELS];

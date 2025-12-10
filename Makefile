@@ -22,13 +22,17 @@ CFLAGS += -I$(INCDIR_PR)
 OBJS_SIM = $(BUILDDIR)/blinky.o \
            $(BUILDDIR)/gpio_sim.o \
            $(BUILDDIR)/i2c_sim.o \
-           $(BUILDDIR)/pwm_controller.o 
+           $(BUILDDIR)/pwm_controller.o \
+           $(BUILDDIR)/servo.o \
+           $(BUILDDIR)/irled.o
 
 
 OBJS_RPI = $(BUILDDIR)/blinky.o \
            $(BUILDDIR)/gpio.o    \
            $(BUILDDIR)/i2c.o	\
-           $(BUILDDIR)/pwm_controller.o 
+           $(BUILDDIR)/pwm_controller.o \
+           $(BUILDDIR)/servo.o \
+           $(BUILDDIR)/irled.o
 
 TARGET = $(BUILDDIR)/lib.so
 
@@ -85,6 +89,13 @@ $(BUILDDIR)/pwm_controller.o: $(SRCDIR_LIB)/pwm_controller.c $(INCDIR_LIB)/pwm_c
 	@echo "Compiling pwm_controller.c"
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(BUILDDIR)/servo.o: $(SRCDIR_PR)/servo.c $(INCDIR_PR)/servo.h
+	@echo "Compiling servo.c"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILDDIR)/irled.o: $(SRCDIR_PR)/irled.c $(INCDIR_PR)/irled.h
+	@echo "Compiling irled.c"
+	$(CC) $(CFLAGS) -c $< -o $@
 # -------------------------
 # Utility targets
 # -------------------------
