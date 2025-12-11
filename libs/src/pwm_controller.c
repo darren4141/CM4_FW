@@ -1,6 +1,7 @@
 #include "pwm_controller.h"
 
 #include <stdio.h>
+#include <unistd.h>
 
 #include "cm4_i2c.h"
 
@@ -18,12 +19,31 @@ StatusCode pwm_controller_init(uint32_t pwm_freq) {
     return ret;
   }
 
-  PCA_WRITE_REG(PCA_MODE1, MODE1_AI | MODE1_SLEEP);
+  uint8_t mode1 = 0;
 
-  uint32_t prescale_val = (PCA_DEFAULT_FREQ / (4096 * pwm_freq)) - 1;
+  ret = i2c_write_then_read(I2C_BUS_2, PCA_I2C_ADDR, (uint8_t[]){PCA_MODE1}, 1,
+                            &mode1, 1);
+
+  if (ret != STATUS_CODE_OK) {
+    printf("i2c_write_then_read() failed with exit code %d\n", ret);
+    return ret;
+  }
+
+  uint8_t mode1_sleep = (mode1 & ~MODE1_RESTART) | MODE1_SLEEP;
+
+  PCA_WRITE_REG(PCA_MODE1, mode1_sleep);
+
+  float prescale_f = (float)(PCA_DEFAULT_FREQ / (4096 * (float)pwm_freq)) - 1;
+
+  uint8_t prescale_val = (uint8_t)(prescale_f + 0.5f); // rounding
 
   PCA_WRITE_REG(PCA_PRE_SCALE, prescale_val);
-  PCA_WRITE_REG(PCA_MODE1, MODE1_AI & ~MODE1_SLEEP);
+
+  PCA_WRITE_REG(PCA_MODE1, mode1_sleep & ~MODE1_SLEEP);
+
+  usleep(1000);
+  PCA_WRITE_REG(PCA_MODE1,
+                (mode1_sleep & ~MODE1_SLEEP) | MODE1_RESTART | MODE1_AI);
   PCA_WRITE_REG(PCA_MODE2, MODE2_OUTDRV);
 
   return STATUS_CODE_OK;

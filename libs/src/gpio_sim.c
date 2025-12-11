@@ -98,3 +98,16 @@ StatusCode gpio_get_edge_event(int pin, int *event) {
   printf("[SIM] Pin %d = %d\n", pin, *event);
   return STATUS_CODE_OK;
 }
+
+StatusCode gpio_clear_edge(int pin) {
+  if (!s_gpio_regs) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  if (pin < 0 || pin > 53) {
+    return STATUS_CODE_INVALID_ARGS;
+  }
+
+  printf("[SIM] Pin  %d edge cleared\n", pin);
+  return STATUS_CODE_OK;
+}
