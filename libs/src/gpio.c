@@ -200,3 +200,29 @@ StatusCode gpio_get_edge_event(int pin, int *event) {
 
   return STATUS_CODE_OK;
 }
+
+StatusCode gpio_clear_edge(int pin) {
+  if (!s_gpio_regs) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  if (pin < 0 || pin > 53) {
+    return STATUS_CODE_INVALID_ARGS;
+  }
+
+  uint8_t bank;
+
+  if (pin >= 32) {
+    bank = 1;
+  } else {
+    bank = 0;
+  }
+
+  uint8_t bit = pin % 32;
+  uint32_t mask = (1U << bit);
+  uint8_t eds_index = GPEDS0_INDEX + bank;
+
+  s_gpio_regs[eds_index] = mask;
+
+  return STATUS_CODE_OK;
+}

@@ -64,3 +64,5 @@ StatusCode gpio_toggle(int pin);
 StatusCode gpio_set_edge(int pin, GpioEdge edge);
 
 StatusCode gpio_get_edge_event(int pin, int *event);
+
+StatusCode gpio_clear_edge(int pin);
