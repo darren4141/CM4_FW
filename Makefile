@@ -24,7 +24,8 @@ OBJS_SIM = $(BUILDDIR)/blinky.o \
            $(BUILDDIR)/i2c_sim.o \
            $(BUILDDIR)/pwm_controller.o \
            $(BUILDDIR)/servo.o \
-           $(BUILDDIR)/irled.o
+           $(BUILDDIR)/irled.o \
+           $(BUILDDIR)/currentsense.o
 
 
 OBJS_RPI = $(BUILDDIR)/blinky.o \
@@ -32,7 +33,8 @@ OBJS_RPI = $(BUILDDIR)/blinky.o \
            $(BUILDDIR)/i2c.o	\
            $(BUILDDIR)/pwm_controller.o \
            $(BUILDDIR)/servo.o \
-           $(BUILDDIR)/irled.o
+           $(BUILDDIR)/irled.o \
+           $(BUILDDIR)/currentsense.o
 
 TARGET = $(BUILDDIR)/lib.so
 
@@ -95,6 +97,10 @@ $(BUILDDIR)/servo.o: $(SRCDIR_PR)/servo.c $(INCDIR_PR)/servo.h
 
 $(BUILDDIR)/irled.o: $(SRCDIR_PR)/irled.c $(INCDIR_PR)/irled.h
 	@echo "Compiling irled.c"
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILDDIR)/currentsense.o: $(SRCDIR_PR)/currentsense.c $(INCDIR_PR)/currentsense.h
+	@echo "Compiling currentsense.c"
 	$(CC) $(CFLAGS) -c $< -o $@
 # -------------------------
 # Utility targets
