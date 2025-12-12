@@ -175,15 +175,8 @@ StatusCode irled_init() {
   IRLED_WRITE_REG(MX_IE1, IE1_A_FULL_EN | IE1_ALC_OVF_EN);
   IRLED_WRITE_REG(MX_MODE_CONFIG, MODE_CONFIG_SPO2_MODE);
 
-  ret = gpio_set_mode(INT_PIN_1, GPIO_MODE_INPUT);
-  if (ret != STATUS_CODE_OK) {
-    printf("gpio_set_mode() failed with exit code: %u\n", ret);
-  }
-
-  ret = gpio_set_edge(INT_PIN_1, GPIO_EDGE_FALLING);
-  if (ret != STATUS_CODE_OK) {
-    printf("gpio_set_edge() failed with exit code: %u\n", ret);
-  }
+  TRY(gpio_set_mode(INT_PIN_1, GPIO_MODE_INPUT));
+  TRY(gpio_set_edge(INT_PIN_1, GPIO_EDGE_FALLING));
 
   return STATUS_CODE_OK;
 }

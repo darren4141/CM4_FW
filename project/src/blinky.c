@@ -56,7 +56,7 @@ StatusCode blinky_toggle(LedChannel channel) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
-  int curr_state = led_state[LED_CHANNEL_TO_INDEX(channel)];
+  LedState curr_state = led_state[LED_CHANNEL_TO_INDEX(channel)];
 
   if (curr_state == LED_STATE_ON || curr_state == LED_STATE_PWM) {
     ret = blinky_set(channel, LED_STATE_OFF);
@@ -64,6 +64,31 @@ StatusCode blinky_toggle(LedChannel channel) {
     ret = blinky_set(channel, LED_STATE_ON);
   } else {
     return STATUS_CODE_INVALID_ARGS;
+  }
+
+  return ret;
+}
+
+StatusCode blinky_set_pwm(LedChannel channel, float pwm_percentage) {
+  StatusCode ret = STATUS_CODE_OK;
+  if (channel != LED_CHANNEL_4 && channel != LED_CHANNEL_5) {
+    printf("Led channel %d is invalid\n", channel);
+    return STATUS_CODE_INVALID_ARGS;
+  }
+
+  if (pwm_percentage < 0.0f || pwm_percentage > 1.0f) {
+    return STATUS_CODE_INVALID_ARGS;
+  } else if (pwm_percentage == 0) {
+    ret = blinky_set(channel, LED_STATE_OFF);
+  } else if (pwm_percentage == 1) {
+    ret = blinky_set(channel, LED_STATE_ON);
+  } else {
+    ret = pwm_controller_set_channel(LED_CHANNEL_TO_PCA_CHANNEL(channel), 0.0f,
+                                     pwm_percentage);
+    if (ret != STATUS_CODE_OK) {
+      return ret;
+    }
+    led_state[LED_CHANNEL_TO_INDEX(channel)] = LED_STATE_PWM;
   }
 
   return ret;

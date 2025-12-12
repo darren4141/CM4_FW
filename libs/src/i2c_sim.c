@@ -57,6 +57,9 @@ StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz) {
   }
 
   printf("[SIM] i2c_init() bus: %u\n", i2c_bus);
+
+  TRY(i2c_scan(i2c_bus));
+
   return STATUS_CODE_OK;
 }
 
@@ -80,6 +83,25 @@ StatusCode i2c_deinit(I2cBus i2c_bus) {
   return STATUS_CODE_OK;
 }
 
+StatusCode i2c_scan(I2cBus i2c_bus) {
+  if (i2c_bus == I2C_BUS_1) {
+    if (!bsc1) {
+      return STATUS_CODE_NOT_INITIALIZED;
+    }
+  } else if (i2c_bus == I2C_BUS_2) {
+    if (!bsc2) {
+      return STATUS_CODE_NOT_INITIALIZED;
+    }
+  } else {
+    perror("i2c_bus");
+    return STATUS_CODE_INVALID_ARGS;
+  }
+
+  printf("[SIM] i2c scan on bus %d\n", i2c_bus);
+
+  return STATUS_CODE_OK;
+}
+
 StatusCode i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf,
                      uint32_t len) {
 
@@ -96,7 +118,7 @@ StatusCode i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf,
     return STATUS_CODE_INVALID_ARGS;
   }
 
-  printf("[SIM] i2c_wrote(): ");
+  printf("[SIM] i2c_write(): ");
 
   for (uint32_t i = 0; i < len; i++) {
     printf("%u ", buf[i]);

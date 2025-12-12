@@ -6,7 +6,6 @@
 
 #define BSC_REG_SIZE_BITS 32
 
-#define PERIPH_BASE 0xFE000000UL
 #define BSC1_BASE (PERIPH_BASE + 0x804000)
 #define BSC2_BASE (PERIPH_BASE + 0x205600)
 #define BSC_LEN 0x20
@@ -45,6 +44,8 @@ StatusCode i2c_get_initialized(I2cBus i2c_bus);
 StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz);
 
 StatusCode i2c_deinit(I2cBus i2c_bus);
+
+StatusCode i2c_scan(I2cBus i2c_bus);
 
 StatusCode i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf,
                      uint32_t len);

@@ -22,3 +22,9 @@ typedef enum {
 } LedState;
 
 StatusCode blinky_init(void);
+
+StatusCode blinky_set(LedChannel channel, LedState state);
+
+StatusCode blinky_toggle(LedChannel channel);
+
+StatusCode blinky_set_pwm(LedChannel channel, float pwm_percentage);
