@@ -5,7 +5,15 @@ static int s_gpio_regs = 0;
 static int pin_modes[40];
 static int pin_values[40];
 
-StatusCode gpio_init(void) {
+StatusCode gpio_get_regs_initialized() {
+  if (!s_gpio_regs) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  return STATUS_CODE_OK;
+}
+
+StatusCode gpio_regs_init(void) {
   if (s_gpio_regs != 0) {
     return STATUS_CODE_ALREADY_INITIALIZED; // already initialized
   }

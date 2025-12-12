@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <time.h>
 
-
 static uint8_t initialized = 0;
 static Servo servo[NUM_SERVO_CHANNELS];
 static volatile bool servo_thread_running = false;
@@ -60,7 +59,14 @@ StatusCode servo_init() {
     return STATUS_CODE_ALREADY_INITIALIZED;
   }
 
-  StatusCode ret = pwm_controller_init(SERVO_PWM_FREQ_HZ);
+  StatusCode ret = pwm_controller_get_initialized();
+
+  if (ret != STATUS_CODE_OK) {
+    printf("pwm controller not initialized\n");
+    return ret;
+  }
+
+  ret = pwm_controller_init(SERVO_PWM_FREQ_HZ);
   if (ret != STATUS_CODE_ALREADY_INITIALIZED && ret != STATUS_CODE_OK) {
     return ret;
   }

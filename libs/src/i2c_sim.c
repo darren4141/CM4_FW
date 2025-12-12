@@ -7,6 +7,25 @@
 static uint32_t *bsc1 = NULL;
 static uint32_t *bsc2 = NULL;
 
+StatusCode i2c_get_initialized(I2cBus i2c_bus) {
+  uint32_t *bsc = NULL;
+
+  if (i2c_bus == I2C_BUS_1) {
+    bsc = bsc1;
+  } else if (i2c_bus == I2C_BUS_2) {
+    bsc = bsc2;
+  } else {
+    perror("i2c_bus");
+    return STATUS_CODE_INVALID_ARGS;
+  }
+
+  if (!bsc) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  return STATUS_CODE_OK;
+}
+
 StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz) {
   (void)i2c_hz;
 

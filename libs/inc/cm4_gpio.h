@@ -51,7 +51,9 @@ typedef enum {
    : (x) == GPIO_EDGE_BOTH    ? "BOTH"                                         \
                               : "UNKNOWN")
 
-StatusCode gpio_init(void);
+StatusCode gpio_get_regs_initialized();
+
+StatusCode gpio_regs_init(void);
 
 StatusCode gpio_set_mode(int pin, GpioMode mode);
 

@@ -8,7 +8,15 @@
 
 static volatile uint32_t *s_gpio_regs = NULL;
 
-StatusCode gpio_init(void) {
+StatusCode gpio_get_regs_initialized() {
+  if (!s_gpio_regs) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  return STATUS_CODE_OK;
+}
+
+StatusCode gpio_regs_init(void) {
   if (s_gpio_regs != NULL) {
     return STATUS_CODE_ALREADY_INITIALIZED; // already initialized
   }

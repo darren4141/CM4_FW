@@ -8,8 +8,12 @@
 #include "cm4_gpio.h"
 #include "cm4_i2c.h"
 
+static StatusCode irled_read_reg(uint8_t reg, uint8_t *val);
+
 #define IRLED_WRITE_REG(reg, val)                                              \
   i2c_write(I2C_BUS_1, MX_I2C_ADDR, (uint8_t[]){reg, val}, 2);
+
+#define IRLED_READ_REG(reg, val) irled_read_reg(reg, val);
 
 static pthread_t edge_thread;
 static volatile bool is_thread_running = false;
@@ -46,7 +50,7 @@ static void *edge_thread_func(void *arg) {
     if (event == 1) {
       gpio_clear_edge(INT_PIN_1);
       uint8_t status = 0;
-      irled_read_reg(MX_IS1, &status);
+      IRLED_READ_REG(MX_IS1, &status);
 
       if (status & IS1_A_FULL) {
         max30102_read_fifo_to_buffer();
@@ -72,15 +76,14 @@ static StatusCode max30102_read_fifo_to_buffer() {
   uint8_t wr = 0;
   uint8_t rd = 0;
 
-  irled_read_reg(MX_FIFO_WR_PTR, &wr);
-  irled_read_reg(MX_FIFO_RD_PTR, &rd);
+  IRLED_READ_REG(MX_FIFO_WR_PTR, &wr);
+  IRLED_READ_REG(MX_FIFO_RD_PTR, &rd);
 
   uint8_t count = (wr - rd) & 0x1F;
 
   for (uint8_t i = 0; i < count; i++) {
     Max30102Sample sample;
 
-    uint8_t read_reg = MX_FIFO_DATA;
     uint8_t buf[6];
     StatusCode ret = i2c_write_then_read(I2C_BUS_1, MX_I2C_ADDR,
                                          (uint8_t[]){MX_FIFO_DATA}, 1, buf, 6);
@@ -110,13 +113,19 @@ static StatusCode max30102_read_fifo_to_buffer() {
 StatusCode irled_init() {
   StatusCode ret = STATUS_CODE_OK;
 
+  ret = i2c_get_initialized(I2C_BUS_1);
+  if (ret != STATUS_CODE_OK) {
+    printf("i2c bus: %u is not initialized\n", ret);
+    return ret;
+  }
+
   IRLED_WRITE_REG(MX_MODE_CONFIG, MODE_CONFIG_RESET);
 
   uint8_t mode_cfg = 0;
   const int max_retries = 50;
 
   for (int i = 0; i < max_retries; i++) {
-    irled_read_reg(MX_MODE_CONFIG, &mode_cfg);
+    IRLED_READ_REG(MX_MODE_CONFIG, &mode_cfg);
     if ((mode_cfg & MODE_CONFIG_RESET) == 0) {
       break;
     }
@@ -124,25 +133,25 @@ StatusCode irled_init() {
   }
 
   uint8_t partId;
-  ret = irled_read_reg(MX_PART_ID, &partId);
+  ret = IRLED_READ_REG(MX_PART_ID, &partId);
   if (ret != STATUS_CODE_OK) {
-    printf("irled_read_reg() failed with exit code: %u\n", ret);
+    printf("IRLED_READ_REG() failed with exit code: %u\n", ret);
     return STATUS_CODE_FAILED;
   } else {
     printf("irled init, part id: %d, expected 0x15\n", partId);
   }
 
   uint8_t int_status;
-  ret = irled_read_reg(MX_IS1, &int_status);
+  ret = IRLED_READ_REG(MX_IS1, &int_status);
   if (ret != STATUS_CODE_OK) {
-    printf("irled_read_reg() failed with exit code: %u\n", ret);
+    printf("IRLED_READ_REG() failed with exit code: %u\n", ret);
     return STATUS_CODE_FAILED;
   } else {
     printf("Cleared interrupt status 1 with value: %d\n", int_status);
   }
-  ret = irled_read_reg(MX_IS2, &int_status);
+  ret = IRLED_READ_REG(MX_IS2, &int_status);
   if (ret != STATUS_CODE_OK) {
-    printf("irled_read_reg() failed with exit code: %u\n", ret);
+    printf("IRLED_READ_REG() failed with exit code: %u\n", ret);
     return STATUS_CODE_FAILED;
   } else {
     printf("Cleared interrupt status 2 with value: %d\n", int_status);

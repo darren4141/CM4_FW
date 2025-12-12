@@ -11,7 +11,32 @@
 static volatile uint32_t *bsc1 = NULL;
 static volatile uint32_t *bsc2 = NULL;
 
+StatusCode i2c_get_initialized(I2cBus i2c_bus) {
+  uint32_t *bsc = NULL;
+
+  if (i2c_bus == I2C_BUS_1) {
+    bsc = bsc1;
+  } else if (i2c_bus == I2C_BUS_2) {
+    bsc = bsc2;
+  } else {
+    perror("i2c_bus");
+    return STATUS_CODE_INVALID_ARGS;
+  }
+
+  if (!bsc) {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+
+  return STATUS_CODE_OK;
+}
+
 StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz) {
+  StatusCode ret = gpio_get_regs_initialized();
+  if (ret != STATUS_CODE_OK) {
+    printf("gpio regs are not initialized");
+    return ret;
+  }
+
   int fd = open("/dev/mem", O_RDWR | O_SYNC);
   if (fd < 0) {
     return STATUS_CODE_MEM_ACCESS_FAILURE;

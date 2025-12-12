@@ -65,6 +65,8 @@ typedef enum {
 #define PCA_PRE_SCALE 0xFE
 #define PCA_TESTMODE 0xFF
 
+StatusCode pwm_controller_get_initialized();
+
 StatusCode pwm_controller_init(uint32_t pwm_freq);
 
 StatusCode pwm_controller_set_channel(PCAChannel channel,

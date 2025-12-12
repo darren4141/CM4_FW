@@ -40,6 +40,8 @@ typedef enum {
   I2C_BUS_2 = 2,
 } I2cBus;
 
+StatusCode i2c_get_initialized(I2cBus i2c_bus);
+
 StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz);
 
 StatusCode i2c_deinit(I2cBus i2c_bus);

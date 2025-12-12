@@ -1,5 +1,6 @@
 #include "pwm_controller.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -8,14 +9,24 @@
 #define PCA_WRITE_REG(reg, val)                                                \
   i2c_write(I2C_BUS_2, PCA_I2C_ADDR, (uint8_t[]){reg, val}, 2);
 
+static bool isInitialized = false;
+
+StatusCode pwm_controller_get_initialized() {
+  if (isInitialized) {
+    return STATUS_CODE_OK;
+  } else {
+    return STATUS_CODE_NOT_INITIALIZED;
+  }
+}
+
 StatusCode pwm_controller_init(uint32_t pwm_freq) {
   if (pwm_freq < 24 || pwm_freq > 1526) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
-  StatusCode ret = i2c_init(I2C_BUS_2, PCA_I2C_HZ);
-  if (ret != STATUS_CODE_OK && ret != STATUS_CODE_ALREADY_INITIALIZED) {
-    printf("i2c_init() failed with exit code: %u\n", ret);
+  StatusCode ret = i2c_get_initialized(I2C_BUS_2);
+  if (ret != STATUS_CODE_OK) {
+    printf("i2c bus: %u is not initialized\n", ret);
     return ret;
   }
 
@@ -46,6 +57,7 @@ StatusCode pwm_controller_init(uint32_t pwm_freq) {
                 (mode1_sleep & ~MODE1_SLEEP) | MODE1_RESTART | MODE1_AI);
   PCA_WRITE_REG(PCA_MODE2, MODE2_OUTDRV);
 
+  isInitialized = true;
   return STATUS_CODE_OK;
 }
 
