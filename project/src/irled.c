@@ -11,14 +11,15 @@
 static StatusCode irled_read_reg(uint8_t reg, uint8_t *val);
 
 #define IRLED_WRITE_REG(reg, val)                                              \
-  i2c_write(I2C_BUS_1, MX_I2C_ADDR, (uint8_t[]){reg, val}, 2);
+        i2c_write(I2C_BUS_1, MX_I2C_ADDR, (uint8_t[]) {reg, val}, 2);
 
 #define IRLED_READ_REG(reg, val) irled_read_reg(reg, val);
 
 static pthread_t edge_thread;
 static volatile bool is_thread_running = false;
 static struct timespec ts = {
-    .tv_sec = 0, .tv_nsec = IRLED_THREAD_PERIOD_S * 1000 * 1000 * 1000};
+  .tv_sec = 0, .tv_nsec = IRLED_THREAD_PERIOD_S * 1000 * 1000 * 1000
+};
 
 static void *edge_thread_func(void *arg);
 static StatusCode max30102_read_fifo_to_buffer();
@@ -28,10 +29,11 @@ static volatile uint16_t s_head = 0;
 static volatile uint16_t s_tail = 0;
 static pthread_mutex_t s_buffer_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static StatusCode irled_read_reg(uint8_t reg, uint8_t *val) {
+static StatusCode irled_read_reg(uint8_t reg, uint8_t *val)
+{
   uint8_t read_buf;
   StatusCode ret =
-      i2c_write_then_read(I2C_BUS_1, MX_I2C_ADDR, &reg, 1, &read_buf, 1);
+    i2c_write_then_read(I2C_BUS_1, MX_I2C_ADDR, &reg, 1, &read_buf, 1);
   if (ret != STATUS_CODE_OK) {
     printf("Could not read from register: %d\n", reg);
     return ret;
@@ -41,7 +43,8 @@ static StatusCode irled_read_reg(uint8_t reg, uint8_t *val) {
   return STATUS_CODE_OK;
 }
 
-static void *edge_thread_func(void *arg) {
+static void *edge_thread_func(void *arg)
+{
   (void)arg;
   int event;
 
@@ -71,7 +74,8 @@ static void *edge_thread_func(void *arg) {
   return NULL;
 }
 
-static StatusCode max30102_read_fifo_to_buffer() {
+static StatusCode max30102_read_fifo_to_buffer()
+{
 
   uint8_t wr = 0;
   uint8_t rd = 0;
@@ -86,17 +90,17 @@ static StatusCode max30102_read_fifo_to_buffer() {
 
     uint8_t buf[6];
     StatusCode ret = i2c_write_then_read(I2C_BUS_1, MX_I2C_ADDR,
-                                         (uint8_t[]){MX_FIFO_DATA}, 1, buf, 6);
+                                         (uint8_t[]) {MX_FIFO_DATA}, 1, buf, 6);
     if (ret != STATUS_CODE_OK) {
       printf("i2c read from fifo data register failed\n");
       return STATUS_CODE_FAILED;
     }
 
-    sample.ir = ((uint32_t)(buf[0] & 0x03) << 16 | (uint32_t)(buf[1] << 8) |
-                 (uint32_t)(buf[2]));
+    sample.ir = ((uint32_t)(buf[0] & 0x03) << 16 | (uint32_t)(buf[1] << 8)
+                 | (uint32_t)(buf[2]));
 
-    sample.red = ((uint32_t)(buf[3] & 0x03) << 16 | (uint32_t)(buf[4] << 8) |
-                  (uint32_t)(buf[5]));
+    sample.red = ((uint32_t)(buf[3] & 0x03) << 16 | (uint32_t)(buf[4] << 8)
+                  | (uint32_t)(buf[5]));
 
     pthread_mutex_lock(&s_buffer_mutex);
     s_buffer[s_head] = sample;
@@ -110,7 +114,8 @@ static StatusCode max30102_read_fifo_to_buffer() {
   return STATUS_CODE_OK;
 }
 
-StatusCode irled_init() {
+StatusCode irled_init()
+{
   StatusCode ret = STATUS_CODE_OK;
 
   ret = i2c_get_initialized(I2C_BUS_1);
@@ -137,7 +142,8 @@ StatusCode irled_init() {
   if (ret != STATUS_CODE_OK) {
     printf("IRLED_READ_REG() failed with exit code: %u\n", ret);
     return STATUS_CODE_FAILED;
-  } else {
+  }
+  else {
     printf("irled init, part id: %d, expected 0x15\n", partId);
   }
 
@@ -146,31 +152,33 @@ StatusCode irled_init() {
   if (ret != STATUS_CODE_OK) {
     printf("IRLED_READ_REG() failed with exit code: %u\n", ret);
     return STATUS_CODE_FAILED;
-  } else {
+  }
+  else {
     printf("Cleared interrupt status 1 with value: %d\n", int_status);
   }
   ret = IRLED_READ_REG(MX_IS2, &int_status);
   if (ret != STATUS_CODE_OK) {
     printf("IRLED_READ_REG() failed with exit code: %u\n", ret);
     return STATUS_CODE_FAILED;
-  } else {
+  }
+  else {
     printf("Cleared interrupt status 2 with value: %d\n", int_status);
   }
 
-  IRLED_WRITE_REG(MX_FIFO_CONFIG, FIFO_CONFIG_SAMPLE_AVERAGE_8 |
-                                      FIFO_CONFIG_ROLLOVER_EN |
-                                      FIFO_CONFIG_A_FULL_16_SAMPLES);
+  IRLED_WRITE_REG(MX_FIFO_CONFIG, FIFO_CONFIG_SAMPLE_AVERAGE_8
+                  | FIFO_CONFIG_ROLLOVER_EN
+                  | FIFO_CONFIG_A_FULL_16_SAMPLES);
 
   IRLED_WRITE_REG(MX_FIFO_WR_PTR, 0x00);
   IRLED_WRITE_REG(MX_OVF_COUNTER, 0x00);
   IRLED_WRITE_REG(MX_FIFO_RD_PTR, 0x00);
 
-  IRLED_WRITE_REG(MX_SPO2_CONFIG, SPO2_CONFIG_ADC_RGE_4096 |
-                                      SPO2_CONFIG_SAMPLE_RT_50 |
-                                      SPO2_CONFIG_LED_PW_18);
+  IRLED_WRITE_REG(MX_SPO2_CONFIG, SPO2_CONFIG_ADC_RGE_4096
+                  | SPO2_CONFIG_SAMPLE_RT_50
+                  | SPO2_CONFIG_LED_PW_18);
 
-  IRLED_WRITE_REG(MX_LED1_PULSE_AMP, 0x0F); /* 3.0mA*/
-  IRLED_WRITE_REG(MX_LED2_PULSE_AMP, 0x0F); /* 3.0mA*/
+  IRLED_WRITE_REG(MX_LED1_PULSE_AMP, 0x0F);   /* 3.0mA*/
+  IRLED_WRITE_REG(MX_LED2_PULSE_AMP, 0x0F);   /* 3.0mA*/
 
   IRLED_WRITE_REG(MX_IE1, IE1_A_FULL_EN | IE1_ALC_OVF_EN);
   IRLED_WRITE_REG(MX_MODE_CONFIG, MODE_CONFIG_SPO2_MODE);
@@ -181,7 +189,8 @@ StatusCode irled_init() {
   return STATUS_CODE_OK;
 }
 
-StatusCode irled_deinit() {
+StatusCode irled_deinit()
+{
   if (is_thread_running) {
     is_thread_running = false;
     pthread_join(edge_thread, NULL);
@@ -190,7 +199,8 @@ StatusCode irled_deinit() {
   return STATUS_CODE_OK;
 }
 
-StatusCode irled_start_reading() {
+StatusCode irled_start_reading()
+{
   is_thread_running = true;
   int threadRet = pthread_create(&edge_thread, NULL, edge_thread_func, NULL);
   if (threadRet != 0) {
@@ -200,7 +210,8 @@ StatusCode irled_start_reading() {
   return STATUS_CODE_OK;
 }
 
-StatusCode irled_stop_reading() {
+StatusCode irled_stop_reading()
+{
   if (is_thread_running) {
     is_thread_running = false;
     int ret = pthread_join(edge_thread, NULL);
@@ -211,13 +222,15 @@ StatusCode irled_stop_reading() {
   return STATUS_CODE_OK;
 }
 
-StatusCode irled_pop_sample(Max30102Sample *sample) {
+StatusCode irled_pop_sample(Max30102Sample *sample)
+{
   pthread_mutex_lock(&s_buffer_mutex);
 
   if (s_head != s_tail) {
     *sample = s_buffer[s_tail];
     s_tail = (s_tail + 1) % MAX30102_BUFFER_SIZE;
-  } else {
+  }
+  else {
     pthread_mutex_unlock(&s_buffer_mutex);
     return STATUS_CODE_FAILED;
   }

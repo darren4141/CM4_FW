@@ -10,13 +10,15 @@ static volatile bool servo_thread_running = false;
 static pthread_t servo_thread;
 
 static struct timespec ts = {
-    .tv_sec = 0, .tv_nsec = SERVO_THREAD_PERIOD_S * 1000 * 1000 * 1000};
+  .tv_sec = 0, .tv_nsec = SERVO_THREAD_PERIOD_S * 1000 * 1000 * 1000
+};
 
 static void servo_update_all();
 static void servo_update(Servo *servo);
 static void *servo_thread_func(void *args);
 
-static void servo_update_all() {
+static void servo_update_all()
+{
   bool none_running = true;
   for (uint8_t i = 0; i < NUM_SERVO_CHANNELS; i++) {
     if (servo[i].isRunning == true) {
@@ -30,19 +32,22 @@ static void servo_update_all() {
   }
 }
 
-static void servo_update(Servo *servo) {
+static void servo_update(Servo *servo)
+{
 
   float diff = servo->target_angle - servo->current_angle;
 
-  if (diff < 0.1f && diff > -0.1f) {
+  if ((diff < 0.1f) && (diff > -0.1f)) {
     servo->current_angle = servo->target_angle;
     servo->isRunning = false;
-  } else {
+  }
+  else {
     servo_set_angle(servo->channel, servo->current_angle + servo->step);
   }
 }
 
-static void *servo_thread_func(void *args) {
+static void *servo_thread_func(void *args)
+{
   (void)args;
 
   while (servo_thread_running) {
@@ -53,7 +58,8 @@ static void *servo_thread_func(void *args) {
   return NULL;
 }
 
-StatusCode servo_init() {
+StatusCode servo_init()
+{
 
   if (initialized == 1) {
     return STATUS_CODE_ALREADY_INITIALIZED;
@@ -67,7 +73,7 @@ StatusCode servo_init() {
   }
 
   ret = pwm_controller_init(SERVO_PWM_FREQ_HZ);
-  if (ret != STATUS_CODE_ALREADY_INITIALIZED && ret != STATUS_CODE_OK) {
+  if ((ret != STATUS_CODE_ALREADY_INITIALIZED) && (ret != STATUS_CODE_OK)) {
     return ret;
   }
 
@@ -75,7 +81,8 @@ StatusCode servo_init() {
   return ret;
 }
 
-StatusCode servo_deinit() {
+StatusCode servo_deinit()
+{
   if (initialized == 0) {
     return STATUS_CODE_OK;
   }
@@ -90,13 +97,14 @@ StatusCode servo_deinit() {
   return STATUS_CODE_OK;
 }
 
-StatusCode servo_set_angle(ServoChannel channel, float angle) {
+StatusCode servo_set_angle(ServoChannel channel, float angle)
+{
   if (initialized == 0) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
-  if (angle < MIN_ANGLE_DEGREES || angle > MAX_ANGLE_DEGREES ||
-      channel >= NUM_SERVO_CHANNELS) {
+  if ((angle < MIN_ANGLE_DEGREES) || (angle > MAX_ANGLE_DEGREES)
+      || (channel >= NUM_SERVO_CHANNELS)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -106,7 +114,7 @@ StatusCode servo_set_angle(ServoChannel channel, float angle) {
   }
 
   float duty_cycle =
-      ((angle / D_ANGLE) + AVERAGE_PULSE_WIDTH_MS) * SERVO_PWM_FREQ_HZ / 1000;
+    ((angle / D_ANGLE) + AVERAGE_PULSE_WIDTH_MS) * SERVO_PWM_FREQ_HZ / 1000;
 
   StatusCode ret = pwm_controller_set_channel(pcaChannel, 0.0f, duty_cycle);
 
@@ -117,7 +125,8 @@ StatusCode servo_set_angle(ServoChannel channel, float angle) {
   return ret;
 }
 
-StatusCode servo_get(ServoChannel channel, float *angle) {
+StatusCode servo_get(ServoChannel channel, float *angle)
+{
   if (channel >= NUM_SERVO_CHANNELS) {
     return STATUS_CODE_INVALID_ARGS;
   }
@@ -127,9 +136,10 @@ StatusCode servo_get(ServoChannel channel, float *angle) {
 }
 
 StatusCode servo_move_smooth(ServoChannel channel, float angle,
-                             float angular_velocity) {
+                             float angular_velocity)
+{
 
-  if (angular_velocity <= 0 || channel < 0 || channel >= NUM_SERVO_CHANNELS) {
+  if ((angular_velocity <= 0) || (channel < 0) || (channel >= NUM_SERVO_CHANNELS)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 

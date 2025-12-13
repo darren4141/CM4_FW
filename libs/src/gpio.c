@@ -8,7 +8,8 @@
 
 static volatile uint32_t *s_gpio_regs = NULL;
 
-StatusCode gpio_get_regs_initialized() {
+StatusCode gpio_get_regs_initialized()
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
@@ -16,9 +17,10 @@ StatusCode gpio_get_regs_initialized() {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_regs_init(void) {
+StatusCode gpio_regs_init(void)
+{
   if (s_gpio_regs != NULL) {
-    return STATUS_CODE_ALREADY_INITIALIZED; // already initialized
+    return STATUS_CODE_ALREADY_INITIALIZED;       // already initialized
   }
 
   int fd = open("/dev/gpiomem", O_RDWR | O_SYNC);
@@ -42,12 +44,13 @@ StatusCode gpio_regs_init(void) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_set_mode(int pin, GpioMode mode) {
+StatusCode gpio_set_mode(int pin, GpioMode mode)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
-  if (pin < 0 || pin > 53) {
+  if ((pin < 0) || (pin > 53)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -62,12 +65,13 @@ StatusCode gpio_set_mode(int pin, GpioMode mode) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_write(int pin, int value) {
+StatusCode gpio_write(int pin, int value)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
-  if (pin < 0 || pin > 53) {
+  if ((pin < 0) || (pin > 53)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -75,7 +79,8 @@ StatusCode gpio_write(int pin, int value) {
     // high
     int reg_index = GPSET0_INDEX + (pin / 32);
     s_gpio_regs[reg_index] = (1U << (pin % 32));
-  } else {
+  }
+  else {
     // low
     int reg_index = GPCLR0_INDEX + (pin / 32);
     s_gpio_regs[reg_index] = (1U << (pin % 32));
@@ -84,12 +89,13 @@ StatusCode gpio_write(int pin, int value) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_read(int pin, int *state) {
+StatusCode gpio_read(int pin, int *state)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
-  if (pin < 0 || pin > 53) {
+  if ((pin < 0) || (pin > 53)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -101,12 +107,13 @@ StatusCode gpio_read(int pin, int *state) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_toggle(int pin) {
+StatusCode gpio_toggle(int pin)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
-  if (pin < 0 || pin > 53) {
+  if ((pin < 0) || (pin > 53)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -119,19 +126,21 @@ StatusCode gpio_toggle(int pin) {
 
   if (state == 1) {
     ret = gpio_write(pin, 0);
-  } else if (state == 0) {
+  }
+  else if (state == 0) {
     ret = gpio_write(pin, 1);
   }
 
   return ret;
 }
 
-StatusCode gpio_set_edge(int pin, GpioEdge edge) {
+StatusCode gpio_set_edge(int pin, GpioEdge edge)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
-  if (pin < 0 || pin > 53) {
+  if ((pin < 0) || (pin > 53)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -139,7 +148,8 @@ StatusCode gpio_set_edge(int pin, GpioEdge edge) {
 
   if (pin >= 32) {
     bank = 1;
-  } else {
+  }
+  else {
     bank = 0;
   }
 
@@ -160,13 +170,16 @@ StatusCode gpio_set_edge(int pin, GpioEdge edge) {
 
   if (edge == GPIO_EDGE_RISING) {
     ren |= mask;
-  } else if (edge == GPIO_EDGE_FALLING) {
+  }
+  else if (edge == GPIO_EDGE_FALLING) {
     ren |= mask;
     fen |= maskl
-  } else if (edge == GPIO_EDGE_BOTH) {
+  }
+  else if (edge == GPIO_EDGE_BOTH) {
     ren |= mask;
     fen |= maskl
-  } else {
+  }
+  else {
     // nothing to do
   }
 
@@ -176,12 +189,13 @@ StatusCode gpio_set_edge(int pin, GpioEdge edge) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_get_edge_event(int pin, int *event) {
+StatusCode gpio_get_edge_event(int pin, int *event)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
-  if (pin < 0 || pin > 53) {
+  if ((pin < 0) || (pin > 53)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -189,7 +203,8 @@ StatusCode gpio_get_edge_event(int pin, int *event) {
 
   if (pin >= 32) {
     bank = 1;
-  } else {
+  }
+  else {
     bank = 0;
   }
 
@@ -202,19 +217,21 @@ StatusCode gpio_get_edge_event(int pin, int *event) {
 
   if (eds & mask) {
     *event = 1;
-  } else {
+  }
+  else {
     event = 0;
   }
 
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_clear_edge(int pin) {
+StatusCode gpio_clear_edge(int pin)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
-  if (pin < 0 || pin > 53) {
+  if ((pin < 0) || (pin > 53)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -222,7 +239,8 @@ StatusCode gpio_clear_edge(int pin) {
 
   if (pin >= 32) {
     bank = 1;
-  } else {
+  }
+  else {
     bank = 0;
   }
 

@@ -7,14 +7,17 @@
 static uint32_t *bsc1 = NULL;
 static uint32_t *bsc2 = NULL;
 
-StatusCode i2c_get_initialized(I2cBus i2c_bus) {
+StatusCode i2c_get_initialized(I2cBus i2c_bus)
+{
   uint32_t *bsc = NULL;
 
   if (i2c_bus == I2C_BUS_1) {
     bsc = bsc1;
-  } else if (i2c_bus == I2C_BUS_2) {
+  }
+  else if (i2c_bus == I2C_BUS_2) {
     bsc = bsc2;
-  } else {
+  }
+  else {
     perror("i2c_bus");
     return STATUS_CODE_INVALID_ARGS;
   }
@@ -26,16 +29,19 @@ StatusCode i2c_get_initialized(I2cBus i2c_bus) {
   return STATUS_CODE_OK;
 }
 
-StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz) {
+StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz)
+{
   (void)i2c_hz;
 
   uint32_t *bsc = NULL;
 
   if (i2c_bus == I2C_BUS_1) {
     bsc = bsc1;
-  } else if (i2c_bus == I2C_BUS_2) {
+  }
+  else if (i2c_bus == I2C_BUS_2) {
     bsc = bsc2;
-  } else {
+  }
+  else {
     perror("phys_base");
     return STATUS_CODE_INVALID_ARGS;
   }
@@ -49,10 +55,12 @@ StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz) {
   if (i2c_bus == I2C_BUS_1) {
     gpio_set_mode(2, GPIO_MODE_ALT0);
     gpio_set_mode(3, GPIO_MODE_ALT0);
-  } else if (i2c_bus == I2C_BUS_2) {
+  }
+  else if (i2c_bus == I2C_BUS_2) {
     gpio_set_mode(4, GPIO_MODE_ALT5);
     gpio_set_mode(5, GPIO_MODE_ALT5);
-  } else {
+  }
+  else {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -63,14 +71,17 @@ StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz) {
   return STATUS_CODE_OK;
 }
 
-StatusCode i2c_deinit(I2cBus i2c_bus) {
+StatusCode i2c_deinit(I2cBus i2c_bus)
+{
   uint32_t *bsc = NULL;
 
   if (i2c_bus == I2C_BUS_1) {
     bsc = bsc1;
-  } else if (i2c_bus == I2C_BUS_2) {
+  }
+  else if (i2c_bus == I2C_BUS_2) {
     bsc = bsc2;
-  } else {
+  }
+  else {
     perror("i2c_bus");
     return STATUS_CODE_INVALID_ARGS;
   }
@@ -83,16 +94,19 @@ StatusCode i2c_deinit(I2cBus i2c_bus) {
   return STATUS_CODE_OK;
 }
 
-StatusCode i2c_scan(I2cBus i2c_bus) {
+StatusCode i2c_scan(I2cBus i2c_bus)
+{
   if (i2c_bus == I2C_BUS_1) {
     if (!bsc1) {
       return STATUS_CODE_NOT_INITIALIZED;
     }
-  } else if (i2c_bus == I2C_BUS_2) {
+  }
+  else if (i2c_bus == I2C_BUS_2) {
     if (!bsc2) {
       return STATUS_CODE_NOT_INITIALIZED;
     }
-  } else {
+  }
+  else {
     perror("i2c_bus");
     return STATUS_CODE_INVALID_ARGS;
   }
@@ -103,17 +117,20 @@ StatusCode i2c_scan(I2cBus i2c_bus) {
 }
 
 StatusCode i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf,
-                     uint32_t len) {
+                     uint32_t len)
+{
 
   if (i2c_bus == I2C_BUS_1) {
     if (!bsc1) {
       return STATUS_CODE_NOT_INITIALIZED;
     }
-  } else if (i2c_bus == I2C_BUS_2) {
+  }
+  else if (i2c_bus == I2C_BUS_2) {
     if (!bsc2) {
       return STATUS_CODE_NOT_INITIALIZED;
     }
-  } else {
+  }
+  else {
     perror("i2c_bus");
     return STATUS_CODE_INVALID_ARGS;
   }
@@ -127,23 +144,27 @@ StatusCode i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf,
   return STATUS_CODE_OK;
 }
 
-StatusCode i2c_write_byte(I2cBus i2c_bus, uint8_t addr, uint8_t data) {
+StatusCode i2c_write_byte(I2cBus i2c_bus, uint8_t addr, uint8_t data)
+{
   uint8_t data_buf[1];
   data_buf[0] = data;
   StatusCode ret = i2c_write(i2c_bus, addr, data_buf, 1);
   return ret;
 }
 
-StatusCode i2c_read(I2cBus i2c_bus, uint8_t addr, uint8_t *buf, uint32_t len) {
+StatusCode i2c_read(I2cBus i2c_bus, uint8_t addr, uint8_t *buf, uint32_t len)
+{
   if (i2c_bus == I2C_BUS_1) {
     if (!bsc1) {
       return STATUS_CODE_NOT_INITIALIZED;
     }
-  } else if (i2c_bus == I2C_BUS_2) {
+  }
+  else if (i2c_bus == I2C_BUS_2) {
     if (!bsc2) {
       return STATUS_CODE_NOT_INITIALIZED;
     }
-  } else {
+  }
+  else {
     perror("i2c_bus");
     return STATUS_CODE_INVALID_ARGS;
   }

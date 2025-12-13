@@ -5,7 +5,8 @@ static int s_gpio_regs = 0;
 static int pin_modes[40];
 static int pin_values[40];
 
-StatusCode gpio_get_regs_initialized() {
+StatusCode gpio_get_regs_initialized()
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
@@ -13,9 +14,10 @@ StatusCode gpio_get_regs_initialized() {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_regs_init(void) {
+StatusCode gpio_regs_init(void)
+{
   if (s_gpio_regs != 0) {
-    return STATUS_CODE_ALREADY_INITIALIZED; // already initialized
+    return STATUS_CODE_ALREADY_INITIALIZED;     // already initialized
   }
 
   s_gpio_regs = 1;
@@ -23,12 +25,13 @@ StatusCode gpio_regs_init(void) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_set_mode(int pin, GpioMode mode) {
+StatusCode gpio_set_mode(int pin, GpioMode mode)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
-  if (pin < 0 || pin > 53) {
+  if ((pin < 0) || (pin > 53)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -37,12 +40,13 @@ StatusCode gpio_set_mode(int pin, GpioMode mode) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_write(int pin, int value) {
+StatusCode gpio_write(int pin, int value)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
-  if (pin < 0 || pin > 53) {
+  if ((pin < 0) || (pin > 53)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -51,12 +55,13 @@ StatusCode gpio_write(int pin, int value) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_read(int pin, int *state) {
+StatusCode gpio_read(int pin, int *state)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
-  if (pin < 0 || pin > 53) {
+  if ((pin < 0) || (pin > 53)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -65,12 +70,13 @@ StatusCode gpio_read(int pin, int *state) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_toggle(int pin) {
+StatusCode gpio_toggle(int pin)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
-  if (pin < 0 || pin > 53) {
+  if ((pin < 0) || (pin > 53)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -79,12 +85,13 @@ StatusCode gpio_toggle(int pin) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_set_edge(int pin, GpioEdge edge) {
+StatusCode gpio_set_edge(int pin, GpioEdge edge)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
-  if (pin < 0 || pin > 53) {
+  if ((pin < 0) || (pin > 53)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -92,12 +99,13 @@ StatusCode gpio_set_edge(int pin, GpioEdge edge) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_get_edge_event(int pin, int *event) {
+StatusCode gpio_get_edge_event(int pin, int *event)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
-  if (pin < 0 || pin > 53) {
+  if ((pin < 0) || (pin > 53)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -107,12 +115,13 @@ StatusCode gpio_get_edge_event(int pin, int *event) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_clear_edge(int pin) {
+StatusCode gpio_clear_edge(int pin)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
-  if (pin < 0 || pin > 53) {
+  if ((pin < 0) || (pin > 53)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 

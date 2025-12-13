@@ -7,20 +7,23 @@
 #include "cm4_i2c.h"
 
 #define PCA_WRITE_REG(reg, val)                                                \
-  i2c_write(I2C_BUS_2, PCA_I2C_ADDR, (uint8_t[]){reg, val}, 2);
+        i2c_write(I2C_BUS_2, PCA_I2C_ADDR, (uint8_t[]) {reg, val}, 2);
 
 static bool isInitialized = false;
 
-StatusCode pwm_controller_get_initialized() {
+StatusCode pwm_controller_get_initialized()
+{
   if (isInitialized) {
     return STATUS_CODE_OK;
-  } else {
+  }
+  else {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 }
 
-StatusCode pwm_controller_init(uint32_t pwm_freq) {
-  if (pwm_freq < 24 || pwm_freq > 1526) {
+StatusCode pwm_controller_init(uint32_t pwm_freq)
+{
+  if ((pwm_freq < 24) || (pwm_freq > 1526)) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
@@ -32,7 +35,7 @@ StatusCode pwm_controller_init(uint32_t pwm_freq) {
 
   uint8_t mode1 = 0;
 
-  ret = i2c_write_then_read(I2C_BUS_2, PCA_I2C_ADDR, (uint8_t[]){PCA_MODE1}, 1,
+  ret = i2c_write_then_read(I2C_BUS_2, PCA_I2C_ADDR, (uint8_t[]) {PCA_MODE1}, 1,
                             &mode1, 1);
 
   if (ret != STATUS_CODE_OK) {
@@ -46,7 +49,7 @@ StatusCode pwm_controller_init(uint32_t pwm_freq) {
 
   float prescale_f = (float)(PCA_DEFAULT_FREQ / (4096 * (float)pwm_freq)) - 1;
 
-  uint8_t prescale_val = (uint8_t)(prescale_f + 0.5f); // rounding
+  uint8_t prescale_val = (uint8_t)(prescale_f + 0.5f);   // rounding
 
   PCA_WRITE_REG(PCA_PRE_SCALE, prescale_val);
 
@@ -61,9 +64,8 @@ StatusCode pwm_controller_init(uint32_t pwm_freq) {
   return STATUS_CODE_OK;
 }
 
-StatusCode pwm_controller_set_channel(PCAChannel channel,
-                                      float delay_percentage,
-                                      float duty_cycle) {
+StatusCode pwm_controller_set_channel(PCAChannel channel, float delay_percentage, float duty_cycle)
+{
   if (delay_percentage + duty_cycle > 1.0f) {
     return STATUS_CODE_INVALID_ARGS;
   }
@@ -83,13 +85,15 @@ StatusCode pwm_controller_set_channel(PCAChannel channel,
   return ret;
 }
 
-StatusCode pwm_controller_stop_channel(PCAChannel channel) {
+StatusCode pwm_controller_stop_channel(PCAChannel channel)
+{
   // write to channel LEDX_OFF_H
   StatusCode ret = PCA_WRITE_REG(channel + 3, LEDX_FULL_OFF);
   return ret;
 }
 
-StatusCode pwm_controller_digital_set_channel(PCAChannel channel) {
+StatusCode pwm_controller_digital_set_channel(PCAChannel channel)
+{
   // write to channel LEDX_ON_H
   StatusCode ret = PCA_WRITE_REG(channel + 1, LEDX_FULL_ON);
   return ret;

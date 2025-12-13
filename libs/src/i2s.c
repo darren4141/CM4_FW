@@ -10,14 +10,16 @@
 
 static volatile uint32_t *pcm_regs = NULL;
 
-StatusCode i2c_get_initialized() {
+StatusCode i2c_get_initialized()
+{
   if (pcm_regs == NULL) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
   return STATUS_CODE_OK;
 }
 
-StatusCode i2s_init() {
+StatusCode i2s_init()
+{
   StatusCode ret = gpio_get_regs_initialized();
   if (ret != STATUS_CODE_OK) {
     printf("gpio regs are not initialized");
@@ -50,9 +52,9 @@ StatusCode i2s_init() {
   const uint32_t frame_len_clocks = 32;
   const uint32_t fs_pulse_len = 1;
 
-  uint32_t mode = MODE_A_CLKM_MASTER | MODE_A_FSM_MASTER |
-                  ((frame_len_clocks << MODE_A_FLEN_SHIFT) & MODE_A_FLEN_MASK) |
-                  ((fs_pulse_len << MODE_A_FSLEN_SHIFT) & MODE_A_FSLEN_MASK);
+  uint32_t mode = MODE_A_CLKM_MASTER | MODE_A_FSM_MASTER
+                  | ((frame_len_clocks << MODE_A_FLEN_SHIFT) & MODE_A_FLEN_MASK)
+                  | ((fs_pulse_len << MODE_A_FSLEN_SHIFT) & MODE_A_FSLEN_MASK);
 
   pcm_regs[PCM_MODE_A] = mode;
 
@@ -64,11 +66,13 @@ StatusCode i2s_init() {
   const uint32_t ch2_pos = 16;
   const uint32_t ch2_wid = 8;
 
-  txc |= TXC_A_CH1EN | ((ch1_pos << TXC_A_CH1POS_SHIFT) & TXC_A_CH1POS_MASK) |
-         ((ch1_wid << TXC_A_CH1WID_SHIFT) & TXC_A_CH1WID_MASK);
+  txc |= TXC_A_CH1EN
+         | ((ch1_pos << TXC_A_CH1POS_SHIFT) & TXC_A_CH1POS_MASK)
+         | ((ch1_wid << TXC_A_CH1WID_SHIFT) & TXC_A_CH1WID_MASK);
 
-  txc |= TXC_A_CH2EN | ((ch2_pos << TXC_A_CH2POS_SHIFT) & TXC_A_CH2POS_MASK) |
-         ((ch2_wid << TXC_A_CH2WID_SHIFT) & TXC_A_CH2WID_MASK);
+  txc |= TXC_A_CH2EN
+         | ((ch2_pos << TXC_A_CH2POS_SHIFT) & TXC_A_CH2POS_MASK)
+         | ((ch2_wid << TXC_A_CH2WID_SHIFT) & TXC_A_CH2WID_MASK);
 
   pcm_regs[PCM_TXC_A] = txc;
 
@@ -84,7 +88,8 @@ StatusCode i2s_init() {
   return STATUS_CODE_OK;
 }
 
-StatusCode i2s_deinit() {
+StatusCode i2s_deinit()
+{
   if (!pcm_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
