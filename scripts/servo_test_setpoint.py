@@ -3,6 +3,7 @@ import time
 from ctypes import c_int, c_int32, c_float, POINTER
 
 def main():
+    servo_angles = [-90, -30, 30, 90]
     
     ret = clib._gpio_regs_init()
     if ret != 0:
@@ -12,8 +13,7 @@ def main():
         
     
     i2c_addr = c_int(2)
-    i2c_freq = c_int32(100 * 1000)
-    ret = clib._i2c_init(i2c_addr, i2c_freq)
+    ret = clib._i2c_init(i2c_addr)
     if ret != 0:
         print("_i2c_init() failed")
     else:
@@ -27,14 +27,14 @@ def main():
     else:
         print("_pwm_controller_init() success")
         
-    clib._blinky_init()
-    clib._blinky_set(4, 1)
+    clib._servo_init()
     
     while(True):   
-        print("blinky toggle")
-        clib._blinky_toggle(4)
-        clib._blinky_toggle(5)
-        time.sleep(0.5)
+        print("servo set angle")
+        for i in range (0, 4):
+            clib._servo_set_angle(i, servo_angles[i])
+            servo_angles[i] = servo_angles[(i+1)%4]
+        time.sleep(1)
 
 if __name__ == "__main__":
     main()
