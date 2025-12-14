@@ -11,7 +11,7 @@
 static StatusCode irled_read_reg(uint8_t reg, uint8_t *val);
 
 #define IRLED_WRITE_REG(reg, val)                                              \
-        i2c_write(I2C_BUS_1, MX_I2C_ADDR, (uint8_t[]) {reg, val}, 2);
+        i2c_write(I2C_BUS_2, MX_I2C_ADDR, (uint8_t[]) {reg, val}, 2);
 
 #define IRLED_READ_REG(reg, val) irled_read_reg(reg, val);
 
@@ -33,7 +33,7 @@ static StatusCode irled_read_reg(uint8_t reg, uint8_t *val)
 {
   uint8_t read_buf;
   StatusCode ret =
-    i2c_write_then_read(I2C_BUS_1, MX_I2C_ADDR, &reg, 1, &read_buf, 1);
+    i2c_write_then_read(I2C_BUS_2, MX_I2C_ADDR, &reg, 1, &read_buf, 1);
   if (ret != STATUS_CODE_OK) {
     printf("Could not read from register: %d\n", reg);
     return ret;
@@ -47,25 +47,39 @@ static void *edge_thread_func(void *arg)
 {
   (void)arg;
   int event;
-
+  int state;
   while (is_thread_running) {
+    gpio_read(INT_PIN_1, &state);
     gpio_get_edge_event(INT_PIN_1, &event);
+    // printf("gpio edge event: %d\n", event);
+    uint8_t wr = 0, rd = 0;
+    IRLED_READ_REG(MX_FIFO_WR_PTR, &wr);
+    IRLED_READ_REG(MX_FIFO_RD_PTR, &rd);
+    // printf("wr=%u rd=%u count=%u gpio=%i\n", wr, rd, (uint8_t)((wr - rd) & 0x1F), state);
+
     if (event == 1) {
+      printf("Interrupt triggered\n");
       gpio_clear_edge(INT_PIN_1);
       uint8_t status = 0;
+      uint8_t is2 = 0;
       IRLED_READ_REG(MX_IS1, &status);
+      IRLED_READ_REG(MX_IS2, &is2);
 
       if (status & IS1_A_FULL) {
+        printf("IS1_A_FULL, writing to buffer\n");
         max30102_read_fifo_to_buffer();
       }
 
       if (status & IS1_ALC_OVF) {
-        printf("Warning: Ambient light cancellation overflow is causing signal "
-               "to be unreliable");
+        printf("Warning: Ambient light cancellation overflow is causing signal to be unreliable\n");
       }
 
       if (!(status & (IS1_A_FULL | IS1_ALC_OVF))) {
         printf("Warning: interrupt fired with invalid status: %d\n", status);
+      }
+
+      if (is2 & (1 << 1)) {
+        printf("Warning: die temp ready interrupt\n");
       }
     }
     nanosleep(&ts, NULL);
@@ -89,7 +103,7 @@ static StatusCode max30102_read_fifo_to_buffer()
     Max30102Sample sample;
 
     uint8_t buf[6];
-    StatusCode ret = i2c_write_then_read(I2C_BUS_1, MX_I2C_ADDR,
+    StatusCode ret = i2c_write_then_read(I2C_BUS_2, MX_I2C_ADDR,
                                          (uint8_t[]) {MX_FIFO_DATA}, 1, buf, 6);
     if (ret != STATUS_CODE_OK) {
       printf("i2c read from fifo data register failed\n");
@@ -118,7 +132,7 @@ StatusCode irled_init()
 {
   StatusCode ret = STATUS_CODE_OK;
 
-  ret = i2c_get_initialized(I2C_BUS_1);
+  ret = i2c_get_initialized(I2C_BUS_2);
   if (ret != STATUS_CODE_OK) {
     printf("i2c bus: %u is not initialized\n", ret);
     return ret;
@@ -144,7 +158,7 @@ StatusCode irled_init()
     return STATUS_CODE_FAILED;
   }
   else {
-    printf("irled init, part id: %d, expected 0x15\n", partId);
+    printf("irled init, part id: %02X, expected 0x15\n", partId);
   }
 
   uint8_t int_status;
@@ -182,6 +196,23 @@ StatusCode irled_init()
 
   IRLED_WRITE_REG(MX_IE1, IE1_A_FULL_EN | IE1_ALC_OVF_EN);
   IRLED_WRITE_REG(MX_MODE_CONFIG, MODE_CONFIG_SPO2_MODE);
+
+  uint8_t v;
+
+  IRLED_READ_REG(MX_FIFO_CONFIG, &v);
+  printf("FIFO_CONFIG=0x%02X\n", v);
+
+  IRLED_READ_REG(MX_IE1, &v);
+  printf("IE1=0x%02X\n", v);
+
+  IRLED_READ_REG(MX_MODE_CONFIG, &v);
+  printf("MODE_CONFIG=0x%02X\n", v);
+
+  IRLED_READ_REG(MX_IS1, &v);
+  printf("IS1=0x%02X\n", v);
+
+  IRLED_READ_REG(MX_IS2, &v);
+  printf("IS2=0x%02X\n", v);
 
   TRY(gpio_set_mode(INT_PIN_1, GPIO_MODE_INPUT));
   TRY(gpio_set_edge(INT_PIN_1, GPIO_EDGE_FALLING));

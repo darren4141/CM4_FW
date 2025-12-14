@@ -2,7 +2,7 @@
 
 #include "global_enums.h"
 
-#define INA_I2C_ADDRESS   0x45
+#define INA_I2C_ADDRESS   0x41
 
 #define INA_CONFIGURATION 0x00
 

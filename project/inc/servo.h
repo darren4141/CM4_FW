@@ -31,7 +31,7 @@ typedef enum {
 #define MIN_ANGLE_DEGREES      -90
 #define MAX_ANGLE_DEGREES      90
 
-#define D_ANGLE                MAX_ANGLE_DEGREES - MIN_ANGLE_DEGREES
+#define D_ANGLE                ((MAX_ANGLE_DEGREES)-(MIN_ANGLE_DEGREES))
 
 #define SERVO_THREAD_FREQ_HZ   1000
 #define SERVO_THREAD_PERIOD_S  1 / SERVO_THREAD_FREQ_HZ

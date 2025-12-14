@@ -213,6 +213,7 @@ StatusCode i2c_write_then_read(I2cBus i2c_bus, uint8_t addr,
   }
 
   if (!fdp || (*fdp < 0)) {
+    printf("i2c not initialized, fdp: %d\n", *fdp);
     return STATUS_CODE_NOT_INITIALIZED;
   }
   if (!wbuf || !rbuf) {

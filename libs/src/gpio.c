@@ -171,9 +171,10 @@ StatusCode gpio_set_edge(int pin, GpioEdge edge)
 
   if (edge == GPIO_EDGE_RISING) {
     ren |= mask;
+    fen &= ~mask;
   }
   else if (edge == GPIO_EDGE_FALLING) {
-    ren |= mask;
+    ren &= ~mask;
     fen |= mask;
   }
   else if (edge == GPIO_EDGE_BOTH) {
@@ -220,7 +221,7 @@ StatusCode gpio_get_edge_event(int pin, int *event)
     *event = 1;
   }
   else {
-    event = 0;
+    *event = 0;
   }
 
   return STATUS_CODE_OK;

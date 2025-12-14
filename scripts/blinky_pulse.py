@@ -49,15 +49,15 @@ def main():
             led4_freq += 0.05
             
             
-        if led4_freq >= 1:
+        if led5_freq >= 1:
             led5_direction = 1
-        elif led4_freq <= 0:
+        elif led5_freq <= 0:
             led5_direction = 0
             
         if led5_direction == 1:
-            led4_freq -= 0.05
+            led5_freq -= 0.05
         elif led5_direction == 0:
-            led4_freq += 0.05
+            led5_freq += 0.05
         time.sleep(0.1)
 
 if __name__ == "__main__":

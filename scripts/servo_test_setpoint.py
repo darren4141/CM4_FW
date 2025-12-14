@@ -33,7 +33,8 @@ def main():
         print("servo set angle")
         for i in range (0, 4):
             clib._servo_set_angle(i, servo_angles[i])
-            servo_angles[i] = servo_angles[(i+1)%4]
+            
+        servo_angles = servo_angles[1:] + servo_angles[:1]
         time.sleep(1)
 
 if __name__ == "__main__":

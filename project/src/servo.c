@@ -99,6 +99,7 @@ StatusCode servo_deinit()
 
 StatusCode servo_set_angle(ServoChannel channel, float angle)
 {
+  printf("servo %d setting angle %f\n", channel, angle);
   if (initialized == 0) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
@@ -113,15 +114,18 @@ StatusCode servo_set_angle(ServoChannel channel, float angle)
     return STATUS_CODE_INVALID_ARGS;
   }
 
-  float duty_cycle =
-    ((angle / D_ANGLE) + AVERAGE_PULSE_WIDTH_MS) * SERVO_PWM_FREQ_HZ / 1000;
+  float duty_cycle = ((angle / D_ANGLE) + AVERAGE_PULSE_WIDTH_MS) * SERVO_PWM_FREQ_HZ / 1000;
 
   StatusCode ret = pwm_controller_set_channel(pcaChannel, 0.0f, duty_cycle);
 
   if (ret == STATUS_CODE_OK) {
     servo[channel].current_angle = angle;
   }
+  else {
+    return STATUS_CODE_FAILED;
+  }
 
+  printf("servo %d set angle %f duty cycle %f pca channel %d\n", channel, angle, duty_cycle, pcaChannel);
   return ret;
 }
 
