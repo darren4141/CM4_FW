@@ -19,6 +19,7 @@ StatusCode gpio_get_regs_initialized()
 
 StatusCode gpio_regs_init(void)
 {
+  printf("TESTESTSETS\n");
   if (s_gpio_regs != NULL) {
     return STATUS_CODE_ALREADY_INITIALIZED;       // already initialized
   }

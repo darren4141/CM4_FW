@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -10,6 +11,42 @@
 
 static volatile uint32_t *bsc1 = NULL;
 static volatile uint32_t *bsc2 = NULL;
+
+static StatusCode map_periph(int fd,
+                             uintptr_t phys_base,
+                             size_t len,
+                             volatile uint32_t **out)
+{
+  long page_size = sysconf(_SC_PAGESIZE);
+  uintptr_t mask = (uintptr_t)(page_size - 1);
+
+  uintptr_t aligned = phys_base & ~mask;
+  uintptr_t offset = phys_base - aligned;
+
+  void *map = mmap(NULL,
+                   len + offset,
+                   PROT_READ | PROT_WRITE,
+                   MAP_SHARED,
+                   fd,
+                   (off_t)aligned);
+
+  if (map == MAP_FAILED) {
+    int e = errno;
+    fprintf(stderr,
+            "mmap(fd=%d, phys=0x%lx aligned=0x%lx len=%zu off=%lu) failed: %s (errno=%d)\n",
+            fd,
+            (unsigned long)phys_base,
+            (unsigned long)aligned,
+            len,
+            (unsigned long)offset,
+            strerror(e),
+            e);
+    return STATUS_CODE_MEM_ACCESS_FAILURE;
+  }
+
+  *out = (volatile uint32_t *)((uint8_t *)map + offset);
+  return STATUS_CODE_OK;
+}
 
 StatusCode i2c_get_initialized(I2cBus i2c_bus)
 {
@@ -35,7 +72,10 @@ StatusCode i2c_get_initialized(I2cBus i2c_bus)
 
 StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz)
 {
+
   StatusCode ret = gpio_get_regs_initialized();
+  printf("Attempting to initialize i2c\n");
+
   if (ret != STATUS_CODE_OK) {
     printf("gpio regs are not initialized");
     return ret;
@@ -43,11 +83,13 @@ StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz)
 
   int fd = open("/dev/mem", O_RDWR | O_SYNC);
   if (fd < 0) {
+    printf("Failed to access memory\n");
+    fprintf(stderr, "open(/dev/mem) failed: %s (errno=%d)\n", strerror(errno), errno);
     return STATUS_CODE_MEM_ACCESS_FAILURE;
   }
 
   volatile uint32_t **bsc_ptr = NULL;
-  int phys_base;
+  uintptr_t phys_base = 0;
 
   if (i2c_bus == I2C_BUS_1) {
     bsc_ptr = &bsc1;
@@ -68,12 +110,12 @@ StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz)
     return STATUS_CODE_ALREADY_INITIALIZED;
   }
 
-  *bsc_ptr = (uint32_t *)mmap(NULL, BSC_LEN, PROT_READ | PROT_WRITE, MAP_SHARED,
-                              fd, phys_base);
+  ret = map_periph(fd, (uintptr_t)phys_base, BSC_LEN, bsc_ptr);
   close(fd);
-  if (*bsc_ptr == MAP_FAILED) {
-    *bsc_ptr = NULL;
-    return STATUS_CODE_MEM_ACCESS_FAILURE;
+
+  if (ret != STATUS_CODE_OK) {
+    printf("map periph failed\n");
+    return ret;
   }
 
   if (i2c_bus == I2C_BUS_1) {
@@ -88,13 +130,18 @@ StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz)
     return STATUS_CODE_INVALID_ARGS;
   }
 
+  volatile uint32_t *bsc = *bsc_ptr;
+
+  printf("bsc=%p BSC_DIV=%u offset=%u BSC_LEN=%u\n", (void *)bsc,
+         (unsigned)BSC_DIV, (unsigned)(BSC_DIV * 4), (unsigned)BSC_LEN);
+
   uint32_t cdiv = CORE_FREQ_HZ / i2c_hz;
 
   if (cdiv < 2) {
     cdiv = 2;
   }
 
-  *bsc_ptr[BSC_DIV] = cdiv;
+  bsc[BSC_DIV] = cdiv;
   TRY(i2c_scan(i2c_bus));
 
   return STATUS_CODE_OK;
@@ -156,28 +203,24 @@ StatusCode i2c_scan(I2cBus i2c_bus)
     bsc[BSC_S] = S_CLKT | S_ERR | S_DONE;
 
     bsc[BSC_A] = addr;
-    bsc[BSC_DLEN] = 1;
+    bsc[BSC_DLEN] = 0;
 
-    bsc[BSC_C] = C_I2CEN | C_ST | C_READ;
+    bsc[BSC_C] = C_I2CEN | C_ST;
 
-    while (!(bsc[BSC_S] & (S_DONE | S_ERR | S_CLKT))) {
+    while (!(bsc[BSC_S] & S_DONE)) {
       // wait
     }
 
     if (bsc[BSC_S] & S_CLKT) {
       printf("CLK stretch timeout while scanning i2c address %d\n", addr);
       bsc[BSC_S] = S_CLKT | S_ERR | S_DONE;
-      return STATUS_CODE_FAILED;
+      continue;
     }
 
     if (bsc[BSC_S] & S_ERR) {
       // NACK
       bsc[BSC_S] = S_CLKT | S_ERR | S_DONE;
       continue;
-    }
-
-    if (bsc[BSC_S] & S_RXD) {
-      (void)(bsc[BSC_FIFO] & 0xFF);
     }
 
     printf("  Found I2C device at 0x%02X on bus %d\n", addr, i2c_bus);
@@ -237,11 +280,11 @@ StatusCode i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf,
 
   if (bsc[BSC_S] & S_ERR) {
     rc = -2;     // NACK
-    perror("i2c failure code -2");
+    fprintf(stderr, "i2c: NACK from addr 0x%02X (S=0x%08X)\n", addr, (unsigned)bsc[BSC_S]);
   }
   if (bsc[BSC_S] & S_CLKT) {
     rc = -3;     // clock stretch timeout
-    perror("i2c failure code -3");
+    fprintf(stderr, "i2c: clock stretch timeout at addr 0x%02X (S=0x%08X)\n", addr, (unsigned)bsc[BSC_S]);
   }
 
   bsc[BSC_S] = S_CLKT | S_ERR | S_DONE;   // clear flags

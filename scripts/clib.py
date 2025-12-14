@@ -2,12 +2,18 @@ import ctypes
 import os
 from ctypes import c_int, c_int32, c_float, POINTER
 
-lib = ctypes.CDLL(os.path.join("../build", "lib.so"))
 
-_gpio_init = lib.gpio_init
-_gpio_init.argtypes = []
-_gpio_init.restype = c_int
+_here = os.path.dirname(os.path.abspath(__file__))
+_lib_path = os.path.join(_here, "..", "build", "lib.so")
 
+
+print("Loading .so at:", _lib_path)
+
+lib = ctypes.CDLL(_lib_path)
+
+_gpio_regs_init = lib.gpio_regs_init
+_gpio_regs_init.argtypes = []
+_gpio_regs_init.restype = c_int
 
 _i2c_init = lib.i2c_init
 _i2c_init.argtypes = [c_int, c_int32]
