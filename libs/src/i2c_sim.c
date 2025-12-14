@@ -29,7 +29,7 @@ StatusCode i2c_get_initialized(I2cBus i2c_bus)
   return STATUS_CODE_OK;
 }
 
-StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz)
+StatusCode i2c_init(I2cBus i2c_bus)
 {
   (void)i2c_hz;
 
@@ -150,27 +150,4 @@ StatusCode i2c_write_byte(I2cBus i2c_bus, uint8_t addr, uint8_t data)
   data_buf[0] = data;
   StatusCode ret = i2c_write(i2c_bus, addr, data_buf, 1);
   return ret;
-}
-
-StatusCode i2c_read(I2cBus i2c_bus, uint8_t addr, uint8_t *buf, uint32_t len)
-{
-  if (i2c_bus == I2C_BUS_1) {
-    if (!bsc1) {
-      return STATUS_CODE_NOT_INITIALIZED;
-    }
-  }
-  else if (i2c_bus == I2C_BUS_2) {
-    if (!bsc2) {
-      return STATUS_CODE_NOT_INITIALIZED;
-    }
-  }
-  else {
-    perror("i2c_bus");
-    return STATUS_CODE_INVALID_ARGS;
-  }
-
-  (void)len;
-  (void)buf;
-  printf("[SIM] i2c_read() on at address: %u on bus: %u\n", addr, i2c_bus);
-  return STATUS_CODE_OK;
 }

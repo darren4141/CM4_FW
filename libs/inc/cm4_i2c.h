@@ -41,7 +41,7 @@ typedef enum {
 
 StatusCode i2c_get_initialized(I2cBus i2c_bus);
 
-StatusCode i2c_init(I2cBus i2c_bus, uint32_t i2c_hz);
+StatusCode i2c_init(I2cBus i2c_bus);
 
 StatusCode i2c_deinit(I2cBus i2c_bus);
 
@@ -51,7 +51,5 @@ StatusCode i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf,
                      uint32_t len);
 
 StatusCode i2c_write_byte(I2cBus i2c_bus, uint8_t addr, uint8_t data);
-
-StatusCode i2c_read(I2cBus i2c_bus, uint8_t addr, uint8_t *buf, uint32_t len);
 
 StatusCode i2c_write_then_read(I2cBus i2c_bus, uint8_t addr, const uint8_t *write_buf, uint32_t write_len, uint8_t *read_buf, uint32_t read_len);
