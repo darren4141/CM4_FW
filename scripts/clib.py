@@ -1,9 +1,13 @@
 import ctypes
 import os
-import time
 from ctypes import c_int, c_int32, c_float, POINTER
 
 lib = ctypes.CDLL(os.path.join("build", "lib.so"))
+
+_gpio_init = lib.gpio_init
+_gpio_init.argtypes = []
+_gpio_init.restype = c_int
+
 
 _i2c_init = lib.i2c_init
 _i2c_init.argtypes = [c_int, c_int32]
@@ -86,6 +90,3 @@ _currentsense_init.restype = c_int
 _currentsense_read = lib.currentsense_read
 _currentsense_read.argtypes = [POINTER(c_float)]
 _currentsense_read.restype = c_int
-
-if __name__ == "__main__":
-    print("hello")

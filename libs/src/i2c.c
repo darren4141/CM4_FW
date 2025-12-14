@@ -13,7 +13,7 @@ static volatile uint32_t *bsc2 = NULL;
 
 StatusCode i2c_get_initialized(I2cBus i2c_bus)
 {
-  uint32_t *bsc = NULL;
+  volatile uint32_t *bsc = NULL;
 
   if (i2c_bus == I2C_BUS_1) {
     bsc = bsc1;
@@ -305,18 +305,18 @@ StatusCode i2c_read(I2cBus i2c_bus, uint8_t addr, uint8_t *buf, uint32_t len)
 
   if (bsc[BSC_S] & S_ERR) {
     rc = -2;     // NACK
-    perror("i2c failure code -2")
+    perror("i2c failure code -2");
   }
   if (bsc[BSC_S] & S_CLKT) {
     rc = -3;     // clock stretch timeout
-    perror("i2c failure code -3")
+    perror("i2c failure code -3");
   }
 
   bsc[BSC_S] = S_CLKT | S_ERR | S_DONE;   // clear flags
   return rc == 0 ? STATUS_CODE_OK : STATUS_CODE_FAILED;
 }
 
-StatusCode i2c_write_then_read(I2cBus i2c_bus, uint8_t addr, const uint8_t *write_buf, uint32_t write_len, const uint8_t *read_buf, uint32_t read_len)
+StatusCode i2c_write_then_read(I2cBus i2c_bus, uint8_t addr, const uint8_t *write_buf, uint32_t write_len, uint8_t *read_buf, uint32_t read_len)
 {
   volatile uint32_t *bsc = NULL;
 

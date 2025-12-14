@@ -173,11 +173,11 @@ StatusCode gpio_set_edge(int pin, GpioEdge edge)
   }
   else if (edge == GPIO_EDGE_FALLING) {
     ren |= mask;
-    fen |= maskl
+    fen |= mask;
   }
   else if (edge == GPIO_EDGE_BOTH) {
     ren |= mask;
-    fen |= maskl
+    fen |= mask;
   }
   else {
     // nothing to do
