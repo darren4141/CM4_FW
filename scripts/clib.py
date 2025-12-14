@@ -2,7 +2,7 @@ import ctypes
 import os
 from ctypes import c_int, c_int32, c_float, POINTER
 
-lib = ctypes.CDLL(os.path.join("build", "lib.so"))
+lib = ctypes.CDLL(os.path.join("../build", "lib.so"))
 
 _gpio_init = lib.gpio_init
 _gpio_init.argtypes = []
