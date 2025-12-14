@@ -38,6 +38,7 @@ StatusCode pwm_controller_init(uint32_t pwm_freq)
   ret = i2c_write_then_read(I2C_BUS_2, PCA_I2C_ADDR, (uint8_t[]) {PCA_MODE1}, 1,
                             &mode1, 1);
 
+
   if (ret != STATUS_CODE_OK) {
     printf("i2c_write_then_read() failed with exit code %d\n", ret);
     return ret;
@@ -59,6 +60,18 @@ StatusCode pwm_controller_init(uint32_t pwm_freq)
   PCA_WRITE_REG(PCA_MODE1,
                 (mode1_sleep & ~MODE1_SLEEP) | MODE1_RESTART | MODE1_AI);
   PCA_WRITE_REG(PCA_MODE2, MODE2_OUTDRV);
+
+  uint8_t mode_read = 0;
+
+
+  i2c_write_then_read(I2C_BUS_2, PCA_I2C_ADDR, (uint8_t[]) {PCA_MODE1}, 1,
+                      &mode_read, 1);
+
+  printf("PCA9685 MODE1 = 0x%02X\n", mode_read);
+  i2c_write_then_read(I2C_BUS_2, PCA_I2C_ADDR, (uint8_t[]) {PCA_MODE2}, 1,
+                      &mode_read, 1);
+
+  printf("PCA9685 MODE2 = 0x%02X\n", mode_read);
 
   isInitialized = true;
   return STATUS_CODE_OK;
@@ -88,13 +101,15 @@ StatusCode pwm_controller_set_channel(PCAChannel channel, float delay_percentage
 StatusCode pwm_controller_stop_channel(PCAChannel channel)
 {
   // write to channel LEDX_OFF_H
-  StatusCode ret = PCA_WRITE_REG(channel + 3, LEDX_FULL_OFF);
+  StatusCode ret = PCA_WRITE_REG(channel + 1, 0x00);
+  ret = PCA_WRITE_REG(channel + 3, LEDX_FULL_OFF);
   return ret;
 }
 
 StatusCode pwm_controller_digital_set_channel(PCAChannel channel)
 {
   // write to channel LEDX_ON_H
-  StatusCode ret = PCA_WRITE_REG(channel + 1, LEDX_FULL_ON);
+  StatusCode ret = PCA_WRITE_REG(channel + 3, 0x00);
+  ret = PCA_WRITE_REG(channel + 1, LEDX_FULL_ON);
   return ret;
 }

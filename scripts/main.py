@@ -13,7 +13,7 @@ def main():
     
     i2c_addr = c_int(2)
     i2c_freq = c_int32(100 * 1000)
-    clib._i2c_init(i2c_addr, i2c_freq)
+    ret = clib._i2c_init(i2c_addr, i2c_freq)
     if ret != 0:
         print("_i2c_init() failed")
     else:
@@ -21,7 +21,7 @@ def main():
         
     
     pwm_freq = c_int(50)
-    clib._pwm_controller_init(pwm_freq)
+    ret = clib._pwm_controller_init(pwm_freq)
     if ret != 0:
         print("_pwm_controller_init() failed")
     else:
@@ -31,6 +31,7 @@ def main():
     clib._blinky_set(4, 1)
     
     while(True):   
+        print("blinky toggle")
         clib._blinky_toggle(4)
         clib._blinky_toggle(5)
         time.sleep(0.5)

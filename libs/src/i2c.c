@@ -5,13 +5,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <linux/i2c.h>
+#include <linux/i2c-dev.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
 #include "cm4_gpio.h"
-
-static volatile uint32_t *bsc1 = NULL;
-static volatile uint32_t *bsc2 = NULL;
 
 static int i2c_fd_1 = -1;
 static int i2c_fd_2 = -1;
@@ -52,15 +51,11 @@ StatusCode i2c_init(I2cBus i2c_bus)
   int *fdp = NULL;
 
   if (i2c_bus == I2C_BUS_1) {
-    TRY(gpio_set_mode(2, GPIO_MODE_ALT0));
-    TRY(gpio_set_mode(3, GPIO_MODE_ALT0));
     dev = "/dev/i2c-20";
     fdp = &i2c_fd_1;
   }
   else if (i2c_bus == I2C_BUS_2) {
-    TRY(gpio_set_mode(4, GPIO_MODE_ALT5));
-    TRY(gpio_set_mode(5, GPIO_MODE_ALT5));
-    dev = "/dev/i2c-21";
+    dev = "/dev/i2c-3";
     fdp = &i2c_fd_2;
   }
   else {
@@ -90,14 +85,18 @@ StatusCode i2c_deinit(I2cBus i2c_bus)
   int *fdp = NULL;
 
   if (i2c_bus == I2C_BUS_1) {
-    fdp = i2c_fd_1;
+    fdp = &i2c_fd_1;
   }
   else if (i2c_bus == I2C_BUS_2) {
-    fdp = i2c_fd_2;
+    fdp = &i2c_fd_2;
   }
   else {
     perror("i2c_bus");
     return STATUS_CODE_INVALID_ARGS;
+  }
+
+  if (!fdp) {
+    return STATUS_CODE_OK;
   }
 
   fdp = NULL;
@@ -105,9 +104,25 @@ StatusCode i2c_deinit(I2cBus i2c_bus)
   return STATUS_CODE_OK;
 }
 
-StatusCode i2c_scan(I2cBus bus)
+static int smbus_quick(int fd, uint8_t addr)
+{
+  struct i2c_smbus_ioctl_data args = {
+    .read_write = I2C_SMBUS_WRITE,
+    .command = 0,
+    .size = I2C_SMBUS_QUICK,
+    .data = NULL,
+  };
+
+  if (ioctl(fd, I2C_SLAVE, addr) < 0) {
+    return -1;
+  }
+  return ioctl(fd, I2C_SMBUS, &args);
+}
+
+StatusCode i2c_scan(I2cBus i2c_bus)
 {
   int *fdp = NULL;
+
   if (i2c_bus == I2C_BUS_1) {
     fdp = &i2c_fd_1;
   }
@@ -115,36 +130,19 @@ StatusCode i2c_scan(I2cBus bus)
     fdp = &i2c_fd_2;
   }
   else {
+    perror("i2c_bus");
     return STATUS_CODE_INVALID_ARGS;
   }
 
-  if (!fdp || (*fdp < 0)) {
+  if (*fdp < 0) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
-  printf("Scanning I2C bus %d\n", bus);
-
   for (uint8_t addr = 0x03; addr <= 0x77; addr++) {
-    // 0-byte write probe (address-only)
-    struct i2c_msg msg = {
-      .addr = addr,
-      .flags = 0,        // write
-      .len = 0,
-      .buf = NULL,
-    };
-
-    struct i2c_rdwr_ioctl_data data = {
-      .msgs = &msg,
-      .nmsgs = 1,
-    };
-
-    int rc = ioctl(*fdp, I2C_RDWR, &data);
-    if (rc == 1) {
-      printf("  Found I2C device at 0x%02X\n", addr);
-      continue;
+    if (smbus_quick(*fdp, addr) == 0) {
+      printf("Found device at 0x%02X\n", addr);
     }
   }
-
   return STATUS_CODE_OK;
 }
 
@@ -175,11 +173,17 @@ StatusCode i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf,
   }
 
   ssize_t w = write(*fdp, buf, len);
-
-  if (w != (ssize_t)len) {
-    printf("i2c write length mismatch\n");
+  if (w < 0) {
+    fprintf(stderr, "I2C write to 0x%02X failed: %s (errno=%d)\n",
+            addr, strerror(errno), errno);
     return STATUS_CODE_FAILED;
   }
+  if ((uint32_t)w != len) {
+    fprintf(stderr, "I2C write short: wrote %zd/%u to 0x%02X\n", w, len, addr);
+    return STATUS_CODE_FAILED;
+  }
+
+  printf("I2C wrote to 0x%02X\n", addr);
 
   return STATUS_CODE_OK;
 }
@@ -192,7 +196,7 @@ StatusCode i2c_write_byte(I2cBus i2c_bus, uint8_t addr, uint8_t data)
   return ret;
 }
 
-StatusCode i2c_write_then_read(I2cBus bus, uint8_t addr,
+StatusCode i2c_write_then_read(I2cBus i2c_bus, uint8_t addr,
                                const uint8_t *wbuf, uint32_t wlen,
                                uint8_t *rbuf, uint32_t rlen)
 {
@@ -225,5 +229,10 @@ StatusCode i2c_write_then_read(I2cBus bus, uint8_t addr,
     .nmsgs = 2,
   };
 
-  return (ioctl(*fdp, I2C_RDWR, &data) == 2) ? STATUS_CODE_OK : STATUS_CODE_FAILED;
+  if (ioctl(*fdp, I2C_RDWR, &data) < 0) {
+    printf("ioctl failed\n");
+    return STATUS_CODE_FAILED;
+  }
+
+  return STATUS_CODE_OK;
 }

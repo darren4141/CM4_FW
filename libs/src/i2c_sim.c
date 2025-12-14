@@ -31,8 +31,6 @@ StatusCode i2c_get_initialized(I2cBus i2c_bus)
 
 StatusCode i2c_init(I2cBus i2c_bus)
 {
-  (void)i2c_hz;
-
   uint32_t *bsc = NULL;
 
   if (i2c_bus == I2C_BUS_1) {
