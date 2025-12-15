@@ -21,7 +21,7 @@ StatusCode gpio_regs_init(void)
 {
   printf("TESTESTSETS\n");
   if (s_gpio_regs != NULL) {
-    return STATUS_CODE_ALREADY_INITIALIZED;       // already initialized
+    return STATUS_CODE_ALREADY_INITIALIZED;
   }
 
   int fd = open("/dev/gpiomem", O_RDWR | O_SYNC);

@@ -51,11 +51,10 @@ static void *edge_thread_func(void *arg)
   while (is_thread_running) {
     gpio_read(INT_PIN_1, &state);
     gpio_get_edge_event(INT_PIN_1, &event);
-    // printf("gpio edge event: %d\n", event);
     uint8_t wr = 0, rd = 0;
     IRLED_READ_REG(MX_FIFO_WR_PTR, &wr);
     IRLED_READ_REG(MX_FIFO_RD_PTR, &rd);
-    // printf("wr=%u rd=%u count=%u gpio=%i\n", wr, rd, (uint8_t)((wr - rd) & 0x1F), state);
+    printf("wr=%u rd=%u count=%u gpio=%i edge event=%i\n", wr, rd, (uint8_t)((wr - rd) & 0x1F), state, event);
 
     if (event == 1) {
       printf("Interrupt triggered\n");
@@ -196,23 +195,6 @@ StatusCode irled_init()
 
   IRLED_WRITE_REG(MX_IE1, IE1_A_FULL_EN | IE1_ALC_OVF_EN);
   IRLED_WRITE_REG(MX_MODE_CONFIG, MODE_CONFIG_SPO2_MODE);
-
-  uint8_t v;
-
-  IRLED_READ_REG(MX_FIFO_CONFIG, &v);
-  printf("FIFO_CONFIG=0x%02X\n", v);
-
-  IRLED_READ_REG(MX_IE1, &v);
-  printf("IE1=0x%02X\n", v);
-
-  IRLED_READ_REG(MX_MODE_CONFIG, &v);
-  printf("MODE_CONFIG=0x%02X\n", v);
-
-  IRLED_READ_REG(MX_IS1, &v);
-  printf("IS1=0x%02X\n", v);
-
-  IRLED_READ_REG(MX_IS2, &v);
-  printf("IS2=0x%02X\n", v);
 
   TRY(gpio_set_mode(INT_PIN_1, GPIO_MODE_INPUT));
   TRY(gpio_set_edge(INT_PIN_1, GPIO_EDGE_FALLING));

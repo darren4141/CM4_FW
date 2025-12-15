@@ -5,66 +5,77 @@ CC      = gcc
 CFLAGS  = -Wall -Wextra -O2 -fPIC
 LDFLAGS = -shared
 
+# ================================
 # Project directories
+# ================================
 PROJECT    = project
 LIB        = libs
 INCDIR_PR  = $(PROJECT)/inc
 INCDIR_LIB = $(LIB)/inc
 SRCDIR_PR  = $(PROJECT)/src
 SRCDIR_LIB = $(LIB)/src
-BUILDDIR   = build
 
-# Include path for .h files
+# Include paths
 CFLAGS += -I$(INCDIR_LIB)
 CFLAGS += -I$(INCDIR_PR)
 
+# ================================
+# Backend selection
+# ================================
+BACKEND ?= sim
+BUILDDIR = build/$(BACKEND)
+TARGET   = $(BUILDDIR)/lib.so
+
+# ================================
 # Object files
-OBJS_SIM = $(BUILDDIR)/blinky.o \
-           $(BUILDDIR)/gpio_sim.o \
-           $(BUILDDIR)/i2c_sim.o \
-           $(BUILDDIR)/pwm_controller.o \
-           $(BUILDDIR)/servo.o \
-           $(BUILDDIR)/irled.o \
-           $(BUILDDIR)/currentsense.o
+# ================================
+OBJS_SIM = \
+	$(BUILDDIR)/blinky.o \
+	$(BUILDDIR)/gpio_sim.o \
+	$(BUILDDIR)/i2c_sim.o \
+	$(BUILDDIR)/pwm_controller.o \
+	$(BUILDDIR)/servo.o \
+	$(BUILDDIR)/irled.o \
+	$(BUILDDIR)/currentsense.o
 
+OBJS_RPI = \
+	$(BUILDDIR)/blinky.o \
+	$(BUILDDIR)/gpio.o \
+	$(BUILDDIR)/i2c.o \
+	$(BUILDDIR)/pwm_controller.o \
+	$(BUILDDIR)/servo.o \
+	$(BUILDDIR)/irled.o \
+	$(BUILDDIR)/currentsense.o
 
-OBJS_RPI = $(BUILDDIR)/blinky.o \
-           $(BUILDDIR)/gpio.o    \
-           $(BUILDDIR)/i2c.o	\
-           $(BUILDDIR)/pwm_controller.o \
-           $(BUILDDIR)/servo.o \
-           $(BUILDDIR)/irled.o \
-           $(BUILDDIR)/currentsense.o
+.PHONY: all sim rpi build clean builddir
 
-TARGET = $(BUILDDIR)/lib.so
-
-.PHONY: all clean sim rpi build builddir
-
-# Default target: simulation backend
+# ================================
+# Top-level targets
+# ================================
 all: sim
 
-# -------------------------
-# High-level targets
-# -------------------------
-sim: builddir $(OBJS_SIM)
-	$(CC) $(LDFLAGS) -o $(TARGET) $(OBJS_SIM)
+sim:
+	$(MAKE) build BACKEND=sim
 
-rpi: builddir $(OBJS_RPI)
-	$(CC) $(LDFLAGS) -o $(TARGET) $(OBJS_RPI)
+rpi:
+	$(MAKE) build BACKEND=rpi
 
-# Optional: keep BACKEND=sim/rpi interface
-BACKEND ?= sim
-build:
-	@if [ "$(BACKEND)" = "sim" ]; then \
-		$(MAKE) sim; \
-	elif [ "$(BACKEND)" = "rpi" ]; then \
-		$(MAKE) rpi; \
-	else \
-		echo "Unknown BACKEND: $(BACKEND) (use 'sim' or 'rpi')"; \
-		exit 1; \
-	fi
+build: builddir
+ifeq ($(BACKEND),sim)
+	$(MAKE) $(TARGET) OBJS="$(OBJS_SIM)"
+else ifeq ($(BACKEND),rpi)
+	$(MAKE) $(TARGET) OBJS="$(OBJS_RPI)"
+else
+	$(error Unknown BACKEND $(BACKEND))
+endif
 
-# -------------------------
+# ================================
+# Link
+# ================================
+$(TARGET): $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS)
+
+# ================================
 # Object rules
 # -------------------------
 $(BUILDDIR)/blinky.o: $(SRCDIR_PR)/blinky.c $(INCDIR_PR)/blinky.h
@@ -109,4 +120,4 @@ builddir:
 	mkdir -p $(BUILDDIR)
 
 clean:
-	rm -rf $(BUILDDIR)
+	rm -rf build

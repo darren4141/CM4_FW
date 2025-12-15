@@ -1,11 +1,18 @@
 import ctypes
 import os
 from ctypes import c_int, c_int32, c_float, POINTER
-
+import platform
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_lib_path = os.path.join(_here, "..", "build", "lib.so")
 
+if platform.system() == "Windows":
+    print("Resolving ../build/sim/lib.so")
+    _lib_path = os.path.join(_here, "..", "build", "sim", "lib.so")
+elif platform.system() == "Linux":
+    print("Resolving ../build/rpi/lib.so")
+    _lib_path = os.path.join(_here, "..", "build", "rpi", "lib.so")
+else:
+    print("Unknown OS")
 
 print("Loading .so at:", _lib_path)
 
