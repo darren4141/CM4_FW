@@ -8,12 +8,15 @@
 #include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include  <pthread.h>
 #include <unistd.h>
 
 #include "cm4_gpio.h"
 
 static int i2c_fd_1 = -1;
 static int i2c_fd_2 = -1;
+
+static pthread_mutex_t s_i2c_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 StatusCode i2c_get_initialized(I2cBus i2c_bus)
 {
@@ -74,6 +77,12 @@ StatusCode i2c_init(I2cBus i2c_bus)
   }
 
   *fdp = fd;
+
+  int timeout = 2;
+  ioctl(*fdp, I2C_TIMEOUT, timeout);
+
+  int retries = 1;
+  ioctl(*fdp, I2C_RETRIES, retries);
 
   TRY(i2c_scan(i2c_bus));
 
@@ -167,10 +176,13 @@ StatusCode i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf,
     return STATUS_CODE_INVALID_ARGS;
   }
 
+  pthread_mutex_lock(&s_i2c_mutex);
   if (ioctl(*fdp, I2C_SLAVE, addr) < 0) {
     printf("ioctl failed\n");
+    pthread_mutex_unlock(&s_i2c_mutex);
     return STATUS_CODE_FAILED;
   }
+  pthread_mutex_unlock(&s_i2c_mutex);
 
   ssize_t w = write(*fdp, buf, len);
   if (w < 0) {
@@ -230,10 +242,13 @@ StatusCode i2c_write_then_read(I2cBus i2c_bus, uint8_t addr,
     .nmsgs = 2,
   };
 
+  pthread_mutex_lock(&s_i2c_mutex);
   if (ioctl(*fdp, I2C_RDWR, &data) < 0) {
     printf("ioctl failed\n");
+    pthread_mutex_unlock(&s_i2c_mutex);
     return STATUS_CODE_FAILED;
   }
+  pthread_mutex_unlock(&s_i2c_mutex);
 
   return STATUS_CODE_OK;
 }

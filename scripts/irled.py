@@ -1,6 +1,7 @@
 import clib
 import time
-from ctypes import c_int, c_int32, byref, Structure
+from ctypes import c_int, byref
+import signal
 
 def main():
     
@@ -29,12 +30,21 @@ def main():
         print("_irled_start_reading() failed")
     else:
         print("_irled_start_reading() success")
-    
-    while(True):
-        reading = clib.Max30102Sample()
-        clib._irled_pop_sample(byref(reading))
-        print(f"ir: {reading.ir} led: {reading.red}")
-        time.sleep(0.1)
+
+    sample = clib.Max30102Sample()
+    try:
+        while True:
+            ret = 0
+            while ret == 0:
+                ret = clib._irled_pop_sample(byref(sample))
+                print(f"ir: {sample.ir} red: {sample.red}")
+            print("batch popped")
+            time.sleep(0.075)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        clib._irled_stop_reading()
+        clib._irled_deinit()
 
 if __name__ == "__main__":
     main()

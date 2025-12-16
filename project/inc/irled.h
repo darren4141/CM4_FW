@@ -31,7 +31,11 @@
 #define FIFO_CONFIG_SAMPLE_AVERAGE_4  (0b010 << 5)
 #define FIFO_CONFIG_SAMPLE_AVERAGE_8  (0b011 << 5)
 #define FIFO_CONFIG_ROLLOVER_EN       (1U << 4) /*Enables circular buffer*/
-#define FIFO_CONFIG_A_FULL_16_SAMPLES 0xE
+#define FIFO_CONFIG_A_FULL_4_SAMPLES  0x4
+#define FIFO_CONFIG_A_FULL_8_SAMPLES  0x8
+#define FIFO_CONFIG_A_FULL_10_SAMPLES 0xA
+#define FIFO_CONFIG_A_FULL_12_SAMPLES 0xC
+#define FIFO_CONFIG_A_FULL_14_SAMPLES 0xE
 
 #define MX_MODE_CONFIG                0x09
 
@@ -48,6 +52,7 @@
 #define SPO2_CONFIG_SAMPLE_RT_50      (0b000 << 2)
 #define SPO2_CONFIG_SAMPLE_RT_100     (0b001 << 2)
 #define SPO2_CONFIG_SAMPLE_RT_200     (0b010 << 2)
+#define SPO2_CONFIG_SAMPLE_RT_400     (0b011 << 2)
 
 #define SPO2_CONFIG_LED_PW_15         (0b00 << 0)
 #define SPO2_CONFIG_LED_PW_16         (0b01 << 0)
@@ -67,7 +72,7 @@
 #define MX_REV_ID                     0xFE
 #define MX_PART_ID                    0xFF
 
-#define IRLED_THREAD_FREQ_HZ          1000
+#define IRLED_THREAD_FREQ_HZ          10
 #define IRLED_THREAD_PERIOD_S         1 / IRLED_THREAD_FREQ_HZ
 
 #define INT_PIN_1                     14

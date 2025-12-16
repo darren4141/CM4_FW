@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <time.h>
+#include <stdatomic.h>
 
 #include "cm4_gpio.h"
 #include "cm4_i2c.h"
@@ -16,7 +17,7 @@ static StatusCode irled_read_reg(uint8_t reg, uint8_t *val);
 #define IRLED_READ_REG(reg, val) irled_read_reg(reg, val);
 
 static pthread_t edge_thread;
-static volatile bool is_thread_running = false;
+static atomic_bool is_thread_running = false;
 static struct timespec ts = {
   .tv_sec = 0, .tv_nsec = IRLED_THREAD_PERIOD_S * 1000 * 1000 * 1000
 };
@@ -47,43 +48,28 @@ static void *edge_thread_func(void *arg)
 {
   (void)arg;
   int event;
-  int state;
-  while (is_thread_running) {
-    gpio_read(INT_PIN_1, &state);
+  while (atomic_load(&is_thread_running)) {
     gpio_get_edge_event(INT_PIN_1, &event);
-    uint8_t wr = 0, rd = 0;
-    IRLED_READ_REG(MX_FIFO_WR_PTR, &wr);
-    IRLED_READ_REG(MX_FIFO_RD_PTR, &rd);
-    printf("wr=%u rd=%u count=%u gpio=%i edge event=%i\n", wr, rd, (uint8_t)((wr - rd) & 0x1F), state, event);
-
     if (event == 1) {
-      printf("Interrupt triggered\n");
+// printf("Interrupt triggered\n");
       gpio_clear_edge(INT_PIN_1);
       uint8_t status = 0;
-      uint8_t is2 = 0;
       IRLED_READ_REG(MX_IS1, &status);
-      IRLED_READ_REG(MX_IS2, &is2);
 
       if (status & IS1_A_FULL) {
-        printf("IS1_A_FULL, writing to buffer\n");
-        max30102_read_fifo_to_buffer();
+        StatusCode ret = max30102_read_fifo_to_buffer();
+        if (ret != STATUS_CODE_OK) {
+          struct timespec backoff = {.tv_sec = 0, .tv_nsec = 200 * 1000 * 1000};
+          nanosleep(&backoff, NULL);
+        }
       }
-
-      if (status & IS1_ALC_OVF) {
-        printf("Warning: Ambient light cancellation overflow is causing signal to be unreliable\n");
-      }
-
-      if (!(status & (IS1_A_FULL | IS1_ALC_OVF))) {
+      else {
         printf("Warning: interrupt fired with invalid status: %d\n", status);
-      }
-
-      if (is2 & (1 << 1)) {
-        printf("Warning: die temp ready interrupt\n");
       }
     }
     nanosleep(&ts, NULL);
   }
-
+  printf("exiting thread\n");
   return NULL;
 }
 
@@ -93,10 +79,24 @@ static StatusCode max30102_read_fifo_to_buffer()
   uint8_t wr = 0;
   uint8_t rd = 0;
 
-  IRLED_READ_REG(MX_FIFO_WR_PTR, &wr);
-  IRLED_READ_REG(MX_FIFO_RD_PTR, &rd);
+  StatusCode ret = STATUS_CODE_OK;
+
+  ret = IRLED_READ_REG(MX_FIFO_WR_PTR, &wr);
+  if (ret != STATUS_CODE_OK) {
+    printf("fifo wr ptr read failed with exit code: %u\n", ret);
+    return ret;
+  }
+  ret = IRLED_READ_REG(MX_FIFO_RD_PTR, &rd);
+  if (ret != STATUS_CODE_OK) {
+    printf("fifo wr ptr read failed with exit code: %u\n", ret);
+    return ret;
+  }
 
   uint8_t count = (wr - rd) & 0x1F;
+
+  if (count > 16) {
+    count = 16;
+  }
 
   for (uint8_t i = 0; i < count; i++) {
     Max30102Sample sample;
@@ -178,22 +178,22 @@ StatusCode irled_init()
     printf("Cleared interrupt status 2 with value: %d\n", int_status);
   }
 
-  IRLED_WRITE_REG(MX_FIFO_CONFIG, FIFO_CONFIG_SAMPLE_AVERAGE_8
+  IRLED_WRITE_REG(MX_FIFO_CONFIG, FIFO_CONFIG_SAMPLE_AVERAGE_4
                   | FIFO_CONFIG_ROLLOVER_EN
-                  | FIFO_CONFIG_A_FULL_16_SAMPLES);
+                  | FIFO_CONFIG_A_FULL_10_SAMPLES);
 
   IRLED_WRITE_REG(MX_FIFO_WR_PTR, 0x00);
   IRLED_WRITE_REG(MX_OVF_COUNTER, 0x00);
   IRLED_WRITE_REG(MX_FIFO_RD_PTR, 0x00);
 
   IRLED_WRITE_REG(MX_SPO2_CONFIG, SPO2_CONFIG_ADC_RGE_4096
-                  | SPO2_CONFIG_SAMPLE_RT_50
+                  | SPO2_CONFIG_SAMPLE_RT_400
                   | SPO2_CONFIG_LED_PW_18);
 
-  IRLED_WRITE_REG(MX_LED1_PULSE_AMP, 0x0F);   /* 3.0mA*/
-  IRLED_WRITE_REG(MX_LED2_PULSE_AMP, 0x0F);   /* 3.0mA*/
+  IRLED_WRITE_REG(MX_LED1_PULSE_AMP, 0x3C);
+  IRLED_WRITE_REG(MX_LED2_PULSE_AMP, 0x3C);
 
-  IRLED_WRITE_REG(MX_IE1, IE1_A_FULL_EN | IE1_ALC_OVF_EN);
+  IRLED_WRITE_REG(MX_IE1, IE1_A_FULL_EN);
   IRLED_WRITE_REG(MX_MODE_CONFIG, MODE_CONFIG_SPO2_MODE);
 
   TRY(gpio_set_mode(INT_PIN_1, GPIO_MODE_INPUT));
@@ -204,34 +204,40 @@ StatusCode irled_init()
 
 StatusCode irled_deinit()
 {
-  if (is_thread_running) {
-    is_thread_running = false;
+  if (atomic_load(&is_thread_running)) {
+    atomic_store(&is_thread_running, false);
     pthread_join(edge_thread, NULL);
   }
+
+  printf("Deinitializing\n");
+
+  IRLED_WRITE_REG(MX_MODE_CONFIG, MODE_CONFIG_RESET);
+  IRLED_WRITE_REG(MX_IE1, 0x00);
 
   return STATUS_CODE_OK;
 }
 
 StatusCode irled_start_reading()
 {
-  is_thread_running = true;
+  atomic_store(&is_thread_running, true);
   int threadRet = pthread_create(&edge_thread, NULL, edge_thread_func, NULL);
   if (threadRet != 0) {
-    is_thread_running = false;
+    atomic_store(&is_thread_running, false);
     return STATUS_CODE_THREAD_FAILURE;
   }
   return STATUS_CODE_OK;
 }
 
-StatusCode irled_stop_reading()
+StatusCode irled_stop_reading(void)
 {
-  if (is_thread_running) {
-    is_thread_running = false;
-    int ret = pthread_join(edge_thread, NULL);
-    if (ret != 0) {
-      return STATUS_CODE_THREAD_FAILURE;
-    }
+  if (!atomic_load(&is_thread_running)) {
+    return STATUS_CODE_OK;
   }
+
+  printf("stopping thread\n");
+  atomic_store(&is_thread_running, false);
+  pthread_join(edge_thread, NULL);
+  printf("thread stopped\n");
   return STATUS_CODE_OK;
 }
 
