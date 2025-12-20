@@ -69,6 +69,8 @@ StatusCode pwm_controller_get_initialized();
 
 StatusCode pwm_controller_init(uint32_t pwm_freq);
 
+StatusCode pwm_controller_deinit();
+
 StatusCode pwm_controller_set_channel(PCAChannel channel, float delay_percentage, float duty_cycle);
 
 /*Sets pwm channel to 0% duty cycle*/

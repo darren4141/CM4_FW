@@ -24,11 +24,19 @@ def main():
     else:
         print("_currentsense_init() success")
     
-    while(True):
-        reading = c_float()
-        clib._currentsense_read(byref(reading))
-        print(f"Current reading: {reading.value}")
-        time.sleep(1)
+    try:
+        while(True):
+            reading = c_float()
+            clib._currentsense_read(byref(reading))
+            print(f"Current reading: {reading.value}")
+            time.sleep(1)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        finish()
+
+def finish():
+    clib._i2c_deinit(2)
 
 if __name__ == "__main__":
     main()

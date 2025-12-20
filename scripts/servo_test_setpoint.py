@@ -29,13 +29,23 @@ def main():
         
     clib._servo_init()
     
-    while(True):   
-        print("servo set angle")
-        for i in range (0, 4):
-            clib._servo_set_angle(i, servo_angles[i])
-            
-        servo_angles = servo_angles[1:] + servo_angles[:1]
-        time.sleep(1)
+    try:
+        while(True):   
+            print("servo set angle")
+            for i in range (0, 4):
+                clib._servo_set_angle(i, servo_angles[i])
+                
+            servo_angles = servo_angles[1:] + servo_angles[:1]
+            time.sleep(1)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        finish()
+        
+def finish():
+    clib._servo_deinit()
+    clib._pwm_controller_deinit()
+    clib._i2c_deinit(2)
 
 if __name__ == "__main__":
     main()

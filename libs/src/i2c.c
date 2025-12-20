@@ -54,7 +54,7 @@ StatusCode i2c_init(I2cBus i2c_bus)
   int *fdp = NULL;
 
   if (i2c_bus == I2C_BUS_1) {
-    dev = "/dev/i2c-20";
+    dev = "/dev/i2c-1";
     fdp = &i2c_fd_1;
   }
   else if (i2c_bus == I2C_BUS_2) {

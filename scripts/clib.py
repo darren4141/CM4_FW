@@ -34,6 +34,10 @@ _pwm_controller_init = lib.pwm_controller_init
 _pwm_controller_init.argtypes = [c_int32]
 _pwm_controller_init.restype = c_int
 
+_pwm_controller_deinit = lib.pwm_controller_deinit
+_pwm_controller_deinit.argtypes = []
+_pwm_controller_deinit.restype = c_int
+
 _blinky_init = lib.blinky_init
 _blinky_init.argtypes = []
 _blinky_init.restype = c_int

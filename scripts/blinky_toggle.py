@@ -29,11 +29,20 @@ def main():
     clib._blinky_init()
     clib._blinky_set(4, 1)
     
-    while(True):   
-        print("blinky toggle")
-        clib._blinky_toggle(4)
-        clib._blinky_toggle(5)
-        time.sleep(0.5)
+    try:
+        while(True):   
+            print("blinky toggle")
+            clib._blinky_toggle(4)
+            clib._blinky_toggle(5)
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        finish()
+
+def finish():
+    clib._pwm_controller_deinit()
+    clib._i2c_deinit(2)
 
 if __name__ == "__main__":
     main()

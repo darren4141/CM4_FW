@@ -92,8 +92,12 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        clib._irled_stop_reading()
-        clib._irled_deinit()
+        finish()
+
+def finish():
+    clib._irled_stop_reading()
+    clib._irled_deinit()
+    clib._i2c_deinit(2)
 
 if __name__ == "__main__":
     main()

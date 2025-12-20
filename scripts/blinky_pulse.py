@@ -33,32 +33,42 @@ def main():
     clib._blinky_init()
     clib._blinky_set(4, 1)
     
-    while(True):   
-        print("blinky pulse")
-        clib._blinky_set_pwm(4, c_float(led4_freq))
-        clib._blinky_set_pwm(5, c_float(led5_freq))
-        
-        if led4_freq >= 1:
-            led4_direction = 1
-        elif led4_freq <= 0:
-            led4_direction = 0
+    
+    try:
+        while(True):   
+            print("blinky pulse")
+            clib._blinky_set_pwm(4, c_float(led4_freq))
+            clib._blinky_set_pwm(5, c_float(led5_freq))
             
-        if led4_direction == 1:
-            led4_freq -= 0.05
-        elif led4_direction == 0:
-            led4_freq += 0.05
-            
-            
-        if led5_freq >= 1:
-            led5_direction = 1
-        elif led5_freq <= 0:
-            led5_direction = 0
-            
-        if led5_direction == 1:
-            led5_freq -= 0.05
-        elif led5_direction == 0:
-            led5_freq += 0.05
-        time.sleep(0.1)
+            if led4_freq >= 1:
+                led4_direction = 1
+            elif led4_freq <= 0:
+                led4_direction = 0
+                
+            if led4_direction == 1:
+                led4_freq -= 0.05
+            elif led4_direction == 0:
+                led4_freq += 0.05
+                
+                
+            if led5_freq >= 1:
+                led5_direction = 1
+            elif led5_freq <= 0:
+                led5_direction = 0
+                
+            if led5_direction == 1:
+                led5_freq -= 0.05
+            elif led5_direction == 0:
+                led5_freq += 0.05
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        finish()
+
+def finish():
+    clib._pwm_controller_deinit()
+    clib._i2c_deinit(2)
 
 if __name__ == "__main__":
     main()

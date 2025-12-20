@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "global_enums.h"
 
@@ -84,6 +85,18 @@ typedef struct {
   uint32_t ir;
   uint32_t red;
 } Max30102Sample;
+
+typedef enum {
+  IRLED_STATE_WATING,
+  IRLED_STATE_CALIB,
+  IRLED_STATE_STABLE
+} IrledState_e;
+
+typedef struct {
+  IrledState_e state;
+  bool newReading;
+  uint8_t reading;
+} IrledReading_s;
 
 StatusCode irled_init();
 

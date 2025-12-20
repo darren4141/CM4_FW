@@ -9,6 +9,9 @@
 #define PCA_WRITE_REG(reg, val)                                                \
         i2c_write(I2C_BUS_2, PCA_I2C_ADDR, (uint8_t[]) {reg, val}, 2);
 
+#define PCA_DEINIT_CHANNEL(channelNum) \
+        pwm_controller_stop_channel(PCA_LED##channelNum##_ON_L);
+
 static bool isInitialized = false;
 
 StatusCode pwm_controller_get_initialized()
@@ -74,6 +77,21 @@ StatusCode pwm_controller_init(uint32_t pwm_freq)
   printf("PCA9685 MODE2 = 0x%02X\n", mode_read);
 
   isInitialized = true;
+  return STATUS_CODE_OK;
+}
+
+StatusCode pwm_controller_deinit()
+{
+
+  PCA_DEINIT_CHANNEL(0);
+  PCA_DEINIT_CHANNEL(1);
+  PCA_DEINIT_CHANNEL(2);
+  PCA_DEINIT_CHANNEL(3);
+  PCA_DEINIT_CHANNEL(4);
+  PCA_DEINIT_CHANNEL(5);
+
+  PCA_WRITE_REG(PCA_MODE1, MODE1_SLEEP);
+
   return STATUS_CODE_OK;
 }
 
