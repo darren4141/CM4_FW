@@ -195,7 +195,7 @@ StatusCode i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf,
     return STATUS_CODE_FAILED;
   }
 
-  printf("I2C wrote to 0x%02X\n", addr);
+  // printf("I2C wrote to 0x%02X\n", addr);
 
   return STATUS_CODE_OK;
 }

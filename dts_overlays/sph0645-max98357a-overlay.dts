@@ -1,0 +1,68 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+  compatible = "brcm,bcm2711";
+
+  fragment@0 {
+    target = <&i2s>;
+    __overlay__ {
+      status = "okay";
+    };
+  };
+
+  fragment@1 {
+    target-path = "/";
+    __overlay__ {
+      // MAX98357A output codec
+      max98357a: max98357a {
+        compatible = "maxim,max98357a";
+        #sound-dai-cells = <0>;
+        status = "okay";
+        // Optional: if you wire SD pin to a GPIO, you can add sdmode-gpios here.
+        // Some boards have SD strapped high/low. (Left-channel quirks exist on some setups.)
+      };
+
+      // Digital mic endpoint (SPH0645)
+      dmic: dmic-codec {
+        compatible = "dmic-codec";
+        #sound-dai-cells = <0>;
+        status = "okay";
+      };
+
+      sound: sound {
+        compatible = "simple-audio-card";
+        simple-audio-card,name = "CM4-SPH0645-MAX98357A";
+        simple-audio-card,format = "i2s";
+
+        // Link 0: Playback -> MAX98357A
+        simple-audio-card,dai-link@0 {
+          format = "i2s";
+          bitclock-master = <&play_cpu>;
+          frame-master    = <&play_cpu>;
+
+          play_cpu: cpu {
+            sound-dai = <&i2s>;
+          };
+          codec {
+            sound-dai = <&max98357a>;
+          };
+        };
+
+        // Link 1: Capture <- SPH0645 via dmic-codec
+        simple-audio-card,dai-link@1 {
+          format = "i2s";
+          bitclock-master = <&cap_cpu>;
+          frame-master    = <&cap_cpu>;
+
+          cap_cpu: cpu {
+            sound-dai = <&i2s>;
+          };
+          codec {
+            sound-dai = <&dmic>;
+          };
+        };
+      };
+    };
+  };
+};

@@ -22,6 +22,14 @@ _gpio_regs_init = lib.gpio_regs_init
 _gpio_regs_init.argtypes = []
 _gpio_regs_init.restype = c_int
 
+_gpio_set_mode = lib.gpio_set_mode
+_gpio_set_mode.argtypes = [c_int, c_int]
+_gpio_set_mode.restype = c_int
+
+_gpio_write = lib.gpio_write
+_gpio_write.argtypes = [c_int, c_int]
+_gpio_write.restype = c_int
+
 _i2c_init = lib.i2c_init
 _i2c_init.argtypes = [c_int]
 _i2c_init.restype = c_int
