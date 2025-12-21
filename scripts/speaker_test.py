@@ -20,6 +20,8 @@ def main():
     
     clib._pcm_play(os.fsencode(_aud_path))
     
+    print("done")
+    
     try:
         while(True):
             time.sleep(1)
