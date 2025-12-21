@@ -11,7 +11,8 @@ typedef enum {
   STATUS_CODE_ALREADY_INITIALIZED = -3,
   STATUS_CODE_THREAD_FAILURE      = -4,
   STATUS_CODE_MEM_ACCESS_FAILURE  = -5,
-  STATUS_CODE_FAILED              = -6,
+  STATUS_CODE_OUT_OF_MEMORY       = -6,
+  STATUS_CODE_FAILED              = -7,
 } StatusCode;
 
 #define TRY(expr)                                                              \

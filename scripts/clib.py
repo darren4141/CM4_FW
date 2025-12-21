@@ -1,6 +1,6 @@
 import ctypes
 import os
-from ctypes import c_int, c_int32, c_float, POINTER
+from ctypes import c_int, c_int32, c_float, c_double, c_char_p, POINTER
 import platform
 
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -115,3 +115,12 @@ _currentsense_init.restype = c_int
 _currentsense_read = lib.currentsense_read
 _currentsense_read.argtypes = [POINTER(c_float)]
 _currentsense_read.restype = c_int
+
+
+_pcm_record = lib.pcm_record
+_pcm_record.argtypes = [c_char_p, c_double]
+_pcm_record.restype = c_int
+
+_pcm_play = lib.pcm_play
+_pcm_play.argtypes = [c_char_p]
+_pcm_play.restype = c_int

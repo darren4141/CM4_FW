@@ -8,6 +8,11 @@ def main():
     clib._gpio_regs_init()
     clib._gpio_set_mode(16, 1)
     clib._gpio_write(16, 1)
+    time.sleep(0.5)
+    
+    path = "./audio/good_morning.pcm"
+    
+    clib._pcm_play(path.encode("utf-8"))
     
     try:
         while(True):
