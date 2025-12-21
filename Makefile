@@ -45,7 +45,8 @@ OBJS_RPI = \
 	$(BUILDDIR)/pwm_controller.o \
 	$(BUILDDIR)/servo.o \
 	$(BUILDDIR)/irled.o \
-	$(BUILDDIR)/currentsense.o
+	$(BUILDDIR)/currentsense.o \
+	$(BUILDDIR)/i2s.o
 
 .PHONY: all sim rpi build clean builddir
 
@@ -73,7 +74,7 @@ endif
 # Link
 # ================================
 $(TARGET): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) -lasound
 
 # ================================
 # Object rules
@@ -98,6 +99,10 @@ $(BUILDDIR)/i2c.o: $(SRCDIR_LIB)/i2c.c $(INCDIR_LIB)/cm4_i2c.h
 	@echo "Compiling i2c.c"
 	$(CC) $(CFLAGS) -c $< -o $@
 
+$(BUILDDIR)/i2s.o: $(SRCDIR_LIB)/i2s.c $(INCDIR_LIB)/cm4_i2s.h
+	@echo "Compiling i2s.c"
+	$(CC) $(CFLAGS) -c $< -o $@ 
+
 $(BUILDDIR)/pwm_controller.o: $(SRCDIR_LIB)/pwm_controller.c $(INCDIR_LIB)/pwm_controller.h
 	@echo "Compiling pwm_controller.c"
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -113,6 +118,7 @@ $(BUILDDIR)/irled.o: $(SRCDIR_PR)/irled.c $(INCDIR_PR)/irled.h
 $(BUILDDIR)/currentsense.o: $(SRCDIR_PR)/currentsense.c $(INCDIR_PR)/currentsense.h
 	@echo "Compiling currentsense.c"
 	$(CC) $(CFLAGS) -c $< -o $@
+
 # -------------------------
 # Utility targets
 # -------------------------

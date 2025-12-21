@@ -1,5 +1,6 @@
 import clib
 import time
+import os
 from ctypes import c_int, c_float, byref
 
 def main():
@@ -10,9 +11,14 @@ def main():
     clib._gpio_write(16, 1)
     time.sleep(0.5)
     
-    path = "./audio/good_morning.pcm"
+    _here = os.path.dirname(os.path.abspath(__file__))
+
+    _aud_path = os.path.join(_here, "audio", "good_morning.pcm")
+        
+    if not os.path.isfile(_aud_path):
+        raise FileNotFoundError(_aud_path)
     
-    clib._pcm_play(path.encode("utf-8"))
+    clib._pcm_play(os.fsencode(_aud_path))
     
     try:
         while(True):
