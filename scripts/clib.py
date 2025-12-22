@@ -1,6 +1,6 @@
 import ctypes
 import os
-from ctypes import c_int, c_int32, c_float, c_double, c_char_p, POINTER
+from ctypes import c_int, c_int32, c_float, c_double, c_char_p, c_size_t, POINTER
 import platform
 
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -128,6 +128,10 @@ _pcm_record = lib.pcm_record
 _pcm_record.argtypes = [c_char_p, c_double]
 _pcm_record.restype = c_int
 
-_pcm_play = lib.pcm_play
-_pcm_play.argtypes = [c_char_p]
-_pcm_play.restype = c_int
+_pcm_play_file = lib.pcm_play_file
+_pcm_play_file.argtypes = [c_char_p]
+_pcm_play_file.restype = c_int
+
+_pcm_play_raw = lib.pcm_play_raw
+_pcm_play_raw.argtypes = [POINTER(c_int), c_size_t]
+_pcm_play_raw.restype = c_int

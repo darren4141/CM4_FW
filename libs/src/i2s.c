@@ -29,7 +29,10 @@ static atomic_bool is_playback_idle = true;
 
 typedef struct {
   snd_pcm_t *playback;
-  FILE *file;
+
+  uint8_t *data;
+  size_t data_len;
+
   uint8_t *buf;
   size_t buf_size_bytes;
   size_t bytes_per_frame;
@@ -125,9 +128,9 @@ static void playback_thread_deactivate()
     snd_pcm_close(playback_thread_info.playback);
     playback_thread_info.playback = NULL;
   }
-  if (playback_thread_info.file) {
-    fclose(playback_thread_info.file);
-    playback_thread_info.file = NULL;
+  if (playback_thread_info.data) {
+    free(playback_thread_info.data);
+    playback_thread_info.data = NULL;
   }
   free(playback_thread_info.buf);
   playback_thread_info.buf = NULL;
@@ -141,38 +144,45 @@ static void *playback_thread_func(void *arg)
 {
   (void)arg;
 
+  size_t cursor = 0;
+
   while (atomic_load(&is_playback_thread_running)) {
     while (atomic_load(&is_playback_active)) {
       atomic_store(&is_playback_idle, false);
       snd_pcm_t *pb;
-      FILE *f;
+      uint8_t *data;
+      size_t data_len;
       uint8_t *buf;
       size_t buf_bytes, bpf;
 
       pthread_mutex_lock(&s_playback_mutex);
       pb = playback_thread_info.playback;
-      f = playback_thread_info.file;
+      data = playback_thread_info.data;
+      data_len = playback_thread_info.data_len;
       buf = playback_thread_info.buf;
       buf_bytes = playback_thread_info.buf_size_bytes;
       bpf = playback_thread_info.bytes_per_frame;
       pthread_mutex_unlock(&s_playback_mutex);
 
-
-      if (!pb || !f || !buf || (bpf == 0) || (buf_bytes == 0)) {
+      if (!pb || !data || !buf || (bpf == 0) || (buf_bytes == 0) || (data_len == 0)) {
         playback_thread_deactivate();
         atomic_store(&is_playback_idle, true);
         atomic_store(&is_playback_active, false);
         break;
       }
 
-
-      size_t retrieved = fread(buf, 1, buf_bytes, f);
-      if (retrieved == 0) {
+      size_t remaining = (cursor < data_len) ? (data_len - cursor) : 0;
+      if (remaining == 0) {
+        // finished
         playback_thread_deactivate();
         atomic_store(&is_playback_idle, true);
         atomic_store(&is_playback_active, false);
         break;
       }
+
+      size_t retrieved = (remaining < buf_bytes) ? remaining : buf_bytes;
+      memcpy(buf, data + cursor, retrieved);
+      cursor += retrieved;
 
       snd_pcm_sframes_t frames = (snd_pcm_sframes_t)(retrieved / bpf);
       if (frames == 0) {
@@ -335,7 +345,47 @@ StatusCode pcm_record(const char *dir_path, double seconds)
   return STATUS_CODE_OK;
 }
 
-StatusCode pcm_play(const char *path)
+StatusCode pcm_play_file(const char *path)
+{
+  if (!path) {
+    return STATUS_CODE_INVALID_ARGS;
+  }
+
+  FILE *f = fopen(path, "rb");
+  if (!f) {
+    printf("File open error\n");
+    return STATUS_CODE_FAILED;
+  }
+
+  if (fseek(f, 0, SEEK_END) != 0) {
+    fclose(f);
+    return STATUS_CODE_FAILED;
+  }
+
+  long data_size = ftell(f);
+  if (data_size <= 0) {
+    fclose(f);
+    return STATUS_CODE_FAILED;
+  }
+  rewind(f);
+
+  uint8_t *data = (uint8_t *)malloc((size_t)data_size);
+  if (!data) {
+    fclose(f);
+    return STATUS_CODE_OUT_OF_MEMORY;
+  }
+
+  size_t got = fread(data, 1, (size_t)data_size, f);
+  fclose(f);
+  if (got != (size_t)data_size) {
+    free(data);
+    return STATUS_CODE_FAILED;
+  }
+
+  return pcm_play_raw(data, data_size);
+}
+
+StatusCode pcm_play_raw(const uint8_t *data, const size_t data_size)
 {
   pthread_mutex_lock(&s_playback_mutex);
   if (atomic_load(&is_playback_active)) {
@@ -357,13 +407,9 @@ StatusCode pcm_play(const char *path)
     return STATUS_CODE_FAILED;
   }
 
-  playback_thread_info.file = fopen(path, "rb");
-  if (!playback_thread_info.file) {
-    printf("File open error\n");
-    snd_pcm_close(playback_thread_info.playback);
-    pthread_mutex_unlock(&s_playback_mutex);
-    return STATUS_CODE_FAILED;
-  }
+  free(playback_thread_info.data);
+  playback_thread_info.data = data;
+  playback_thread_info.data_len = (size_t)data_size;
 
   const size_t bytes_per_sample = snd_pcm_format_physical_width(pb_kFmt) / 8;
   const size_t bytes_per_frame = pb_kCh * bytes_per_sample;
@@ -372,7 +418,6 @@ StatusCode pcm_play(const char *path)
   playback_thread_info.buf = (uint8_t *)malloc(buf_bytes);
   if (playback_thread_info.buf == NULL) {
     printf("malloc failed");
-    fclose(playback_thread_info.file);
     snd_pcm_close(playback_thread_info.playback);
     pthread_mutex_unlock(&s_playback_mutex);
     return STATUS_CODE_OUT_OF_MEMORY;
@@ -382,8 +427,7 @@ StatusCode pcm_play(const char *path)
   playback_thread_info.bytes_per_frame = bytes_per_frame;
   pthread_mutex_unlock(&s_playback_mutex);
 
-  printf("Playing raw PCM: %s (rate=%u ch=%u fmt=%s)\n",
-         path, kRate, pb_kCh, snd_pcm_format_name(pb_kFmt));
+  printf("Playing raw PCM: (rate=%u ch=%u fmt=%s)\n", kRate, pb_kCh, snd_pcm_format_name(pb_kFmt));
 
   // start thread
   atomic_store(&is_playback_active, true);

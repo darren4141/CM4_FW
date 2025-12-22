@@ -19,7 +19,7 @@ def main():
         raise FileNotFoundError(_aud_path)
     
     clib._pcm_init()
-    clib._pcm_play(os.fsencode(_aud_path))
+    clib._pcm_play_file(os.fsencode(_aud_path))
         
     try:
         while(True):
