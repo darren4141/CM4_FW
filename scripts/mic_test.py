@@ -1,7 +1,7 @@
 import clib
 import time
 import os
-from ctypes import c_double
+from ctypes import c_double, c_uint8
 
 def main():
     # init goes here
@@ -15,13 +15,17 @@ def main():
         raise FileNotFoundError(_aud_path)
     
     clib._pcm_init()
-    clib._pcm_record()
-    
-    print("done recording")
-    
+    clib._pcm_start_recording()
+        
+    _cbuf = (c_uint8 * (1024 * 2))()
+        
     try:
         while(True):
-            time.sleep(0.1)
+            n = clib._pcm_rb_pop(_cbuf, len(_cbuf))
+            if n > 0:
+                print("CHUNK")
+                print(_cbuf[:n])
+            time.sleep(0.01)
     except KeyboardInterrupt:
         pass
     finally:

@@ -6,8 +6,10 @@
 #include <stdbool.h>
 #include <alsa/asoundlib.h>
 
-#define MIC_DEV     "plughw:2,0"
-#define SPEAKER_DEV "plughw:2,1"
+#define MIC_DEV       "plughw:2,0"
+#define SPEAKER_DEV   "plughw:2,1"
+#define RING_BUF_SIZE (1U << 20)
+
 
 static const unsigned kRate = 48000;   // sample rate
 static const unsigned pb_kCh = 1;
@@ -49,6 +51,70 @@ typedef struct {
 
 static PlaybackThreadInfo_s playback_thread_info;
 static RecordThreadInfo_s record_thread_info;
+
+static uint8_t g_rec_rb[RING_BUF_SIZE];
+static _Atomic uint32_t g_rb_w = 0;   // write index
+static _Atomic uint32_t g_rb_r = 0;   // read index
+
+static inline uint32_t rb_used(uint32_t r, uint32_t w)
+{
+  return (w - r);
+}
+
+static inline uint32_t rb_free(uint32_t r, uint32_t w)
+{
+  return RING_BUF_SIZE - rb_used(r, w);
+}
+
+static void rb_push(const uint8_t *data, uint32_t len)
+{
+  uint32_t r = atomic_load_explicit(&g_rb_r, memory_order_acquire);
+  uint32_t w = atomic_load_explicit(&g_rb_w, memory_order_relaxed);
+
+  if (len > rb_free(r, w)) {
+    // Drop newest chunk if buffer would overflow (or drop oldest by advancing r)
+    return;
+  }
+
+  uint32_t wpos = w % RING_BUF_SIZE;
+  uint32_t first = RING_BUF_SIZE - wpos;
+
+  if (first > len) {
+    first = len;
+  }
+
+  memcpy(&g_rec_rb[wpos], data, first);
+  memcpy(&g_rec_rb[0], data + first, len - first);
+
+  atomic_store_explicit(&g_rb_w, w + len, memory_order_release);
+}
+
+int pcm_rb_pop(uint8_t *out, uint32_t len)
+{
+  uint32_t r = atomic_load_explicit(&g_rb_r, memory_order_relaxed);
+  uint32_t w = atomic_load_explicit(&g_rb_w, memory_order_acquire);
+
+  uint32_t used = rb_used(r, w);
+  if (used == 0) {
+    return 0;
+  }
+
+  uint32_t n = (used < len) ? used : len;
+
+  uint32_t rpos = r % RING_BUF_SIZE;
+  uint32_t first = RING_BUF_SIZE - rpos;
+
+  if (first > n) {
+    first = n;
+  }
+
+  memcpy(out, &g_rec_rb[rpos], first);
+  memcpy(out + first, &g_rec_rb[0], n - first);
+
+  atomic_store_explicit(&g_rb_r, r + n, memory_order_release);
+  return n;
+}
+
 
 static inline int16_t clamp16(int32_t x)
 {
@@ -165,8 +231,9 @@ static void *record_thread_func(void *arg)
         int32_t s = (left >> 16);
         s *= gain;
         out[i] = clamp16(s);
-        printf("%u ", out[i]);
       }
+
+      rb_push((const uint8_t *)out, (uint32_t)(kPeriodFrames * sizeof(int16_t)));
       memset(buf, 0, buf_bytes);
     }
     atomic_store(&is_record_idle, true);
@@ -329,7 +396,7 @@ StatusCode pcm_deinit()
   return STATUS_CODE_OK;
 }
 
-StatusCode pcm_record()
+StatusCode pcm_start_recording()
 {
   printf("pcm record\n");
 

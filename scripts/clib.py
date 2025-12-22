@@ -1,6 +1,6 @@
 import ctypes
 import os
-from ctypes import c_int, c_int32, c_float, c_double, c_char_p, c_size_t, POINTER
+from ctypes import c_int, c_uint8, c_int32, c_float, c_double, c_char_p, c_size_t, POINTER
 import platform
 
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -124,9 +124,9 @@ _pcm_deinit = lib.pcm_deinit
 _pcm_deinit.argtypes = []
 _pcm_deinit.restype = c_int
 
-_pcm_record = lib.pcm_record
-_pcm_record.argtypes = []
-_pcm_record.restype = c_int
+_pcm_start_recording = lib.pcm_start_recording
+_pcm_start_recording.argtypes = []
+_pcm_start_recording.restype = c_int
 
 _pcm_record_to_file = lib.pcm_record_to_file
 _pcm_record_to_file.argtypes = [c_char_p, c_double]
@@ -139,3 +139,7 @@ _pcm_play_file.restype = c_int
 _pcm_play_raw = lib.pcm_play_raw
 _pcm_play_raw.argtypes = [POINTER(c_int), c_size_t]
 _pcm_play_raw.restype = c_int
+
+_pcm_rb_pop = lib.pcm_rb_pop
+_pcm_rb_pop.argtypes = [POINTER(c_uint8), c_int32]
+_pcm_rb_pop.restype = c_int
