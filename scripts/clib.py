@@ -116,6 +116,13 @@ _currentsense_read = lib.currentsense_read
 _currentsense_read.argtypes = [POINTER(c_float)]
 _currentsense_read.restype = c_int
 
+_pcm_init = lib.pcm_init
+_pcm_init.argtypes = []
+_pcm_init.restype = c_int
+
+_pcm_deinit = lib.pcm_deinit
+_pcm_deinit.argtypes = []
+_pcm_deinit.restype = c_int
 
 _pcm_record = lib.pcm_record
 _pcm_record.argtypes = [c_char_p, c_double]

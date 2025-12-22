@@ -18,13 +18,12 @@ def main():
     if not os.path.isfile(_aud_path):
         raise FileNotFoundError(_aud_path)
     
+    clib._pcm_init()
     clib._pcm_play(os.fsencode(_aud_path))
-    
-    print("done")
-    
+        
     try:
         while(True):
-            time.sleep(1)
+            time.sleep(0.1)
     except KeyboardInterrupt:
         pass
     finally:
@@ -32,6 +31,7 @@ def main():
 
 def finish():
     # finish sequence goes here
+    clib._pcm_deinit()
     clib._gpio_write(16, 0)
     return
 
