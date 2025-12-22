@@ -27,6 +27,11 @@ static atomic_bool is_playback_thread_running = false;
 static atomic_bool is_playback_active = false;
 static atomic_bool is_playback_idle = true;
 
+static pthread_t record_thread;
+static atomic_bool is_record_thread_running = false;
+static atomic_bool is_record_active = false;
+static atomic_bool is_record_idle = true;
+
 typedef struct {
   snd_pcm_t *playback;
 
@@ -38,7 +43,12 @@ typedef struct {
   size_t bytes_per_frame;
 } PlaybackThreadInfo_s;
 
+typedef struct {
+  snd_pcm_t *capture;
+} RecordThreadInfo_s;
+
 static PlaybackThreadInfo_s playback_thread_info;
+static RecordThreadInfo_s record_thread_info;
 
 static inline int16_t clamp16(int32_t x)
 {
@@ -116,6 +126,55 @@ static int pcm_open_config(snd_pcm_t **h, const char *dev, snd_pcm_stream_t stre
 
   printf("%s configured: rate=%u ch=%u fmt=%s period=%lu\n", dev, r, ch, snd_pcm_format_name(fmt), (unsigned long)p);
   return 0;
+}
+
+static void *record_thread_func(void *arg)
+{
+  (void)arg;
+  const size_t bytes_per_sample = snd_pcm_format_physical_width(rec_kFmt) / 8;
+  const size_t bytes_per_frame = rec_kCh * bytes_per_sample;
+  const size_t buf_bytes = bytes_per_frame * kPeriodFrames;
+
+  uint8_t *buf = (uint8_t *)malloc(buf_bytes);
+  if (buf == NULL) {
+    printf("record thread - malloc failed\n");
+    snd_pcm_close(record_thread_info.capture);
+    atomic_store(&is_record_thread_running, false);
+  }
+
+  while (atomic_load(&is_record_thread_running)) {
+    while (atomic_load(&is_record_active)) {
+      atomic_store(&is_record_idle, false);
+
+      snd_pcm_sframes_t n = snd_pcm_readi(record_thread_info.capture, buf, (snd_pcm_uframes_t)kPeriodFrames);
+
+      if (n < 0) {
+        int ret = pcm_recover(record_thread_info.capture, (int)n, "capture");
+        if (ret < 0) {
+          printf("Capture failed: %s\n", snd_strerror(ret));
+        }
+        continue;
+      }
+
+      int32_t *in = (int32_t *)buf;
+      int16_t out[kPeriodFrames];
+      const int32_t gain = 4;
+
+      for (snd_pcm_sframes_t i = 0; i < n; i++) {
+        int32_t left = in[2 * i];
+        int32_t s = (left >> 16);
+        s *= gain;
+        out[i] = clamp16(s);
+        printf("%u ", out[i]);
+      }
+      memset(buf, 0, buf_bytes);
+    }
+    atomic_store(&is_record_idle, true);
+    nanosleep(&ts, NULL);
+  }
+
+  printf("Record thread ending...\n");
+  return NULL;
 }
 
 static void playback_thread_deactivate()
@@ -225,6 +284,14 @@ StatusCode pcm_init()
     atomic_store(&is_playback_thread_running, false);
     return STATUS_CODE_THREAD_FAILURE;
   }
+
+  atomic_store(&is_record_thread_running, true);
+  threadRet = pthread_create(&record_thread, NULL, record_thread_func, NULL);
+  if (threadRet != 0) {
+    atomic_store(&is_record_thread_running, false);
+    return STATUS_CODE_THREAD_FAILURE;
+  }
+
   return STATUS_CODE_OK;
 }
 
@@ -249,11 +316,35 @@ StatusCode pcm_deinit()
   atomic_store(&is_playback_thread_running, false);
   pthread_join(playback_thread, NULL);
 
+  atomic_store(&is_record_active, false);
+
+  while (!atomic_load(&is_record_idle)) {
+    sched_yield();
+  }
+
+  atomic_store(&is_record_thread_running, false);
+  pthread_join(record_thread, NULL);
+
   printf("Deinitializing\n");
   return STATUS_CODE_OK;
 }
 
-StatusCode pcm_record(const char *dir_path, double seconds)
+StatusCode pcm_record()
+{
+  printf("pcm record\n");
+
+  record_thread_info.capture = NULL;
+  int ret = pcm_open_config(&record_thread_info.capture, MIC_DEV, SND_PCM_STREAM_CAPTURE, kRate, rec_kCh, rec_kFmt, kPeriodFrames);
+
+  if (ret < 0) {
+    return STATUS_CODE_FAILED;
+  }
+
+  atomic_store(&is_record_active, true);
+  return STATUS_CODE_OK;
+}
+
+StatusCode pcm_record_to_file(const char *dir_path, double seconds)
 {
   snd_pcm_t *capture = NULL;
   int ret = pcm_open_config(&capture, MIC_DEV, SND_PCM_STREAM_CAPTURE, kRate, rec_kCh, rec_kFmt, kPeriodFrames);

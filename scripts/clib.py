@@ -125,8 +125,12 @@ _pcm_deinit.argtypes = []
 _pcm_deinit.restype = c_int
 
 _pcm_record = lib.pcm_record
-_pcm_record.argtypes = [c_char_p, c_double]
+_pcm_record.argtypes = []
 _pcm_record.restype = c_int
+
+_pcm_record_to_file = lib.pcm_record_to_file
+_pcm_record_to_file.argtypes = [c_char_p, c_double]
+_pcm_record_to_file.restype = c_int
 
 _pcm_play_file = lib.pcm_play_file
 _pcm_play_file.argtypes = [c_char_p]

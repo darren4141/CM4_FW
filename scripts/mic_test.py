@@ -14,13 +14,14 @@ def main():
     if not os.path.isdir(_aud_path):
         raise FileNotFoundError(_aud_path)
     
-    clib._pcm_record(os.fsencode(_aud_path), c_double(5.0))
+    clib._pcm_init()
+    clib._pcm_record()
     
     print("done recording")
     
     try:
         while(True):
-            time.sleep(1)
+            time.sleep(0.1)
     except KeyboardInterrupt:
         pass
     finally:
@@ -28,6 +29,7 @@ def main():
 
 def finish():
     # finish sequence goes here
+    clib._pcm_deinit()
     return
 
 if __name__ == "__main__":
