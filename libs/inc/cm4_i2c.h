@@ -39,17 +39,38 @@ typedef enum {
   I2C_BUS_2 = 2,
 } I2cBus;
 
+/**
+ * Check if i2c has been initialized
+ */
 StatusCode i2c_get_initialized(I2cBus i2c_bus);
 
+/**
+ * Initialize i2c from "/dev/i2c-1" or "/dev/i2c-3"
+ */
 StatusCode i2c_init(I2cBus i2c_bus);
 
+/**
+ * Deinit i2c - recommended on program termination
+ */
 StatusCode i2c_deinit(I2cBus i2c_bus);
 
+/**
+ * Scan a given i2c bus for devices
+ */
 StatusCode i2c_scan(I2cBus i2c_bus);
 
+/**
+ * Send an i2c transaction to a given address on a given bus
+ */
 StatusCode i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf,
                      uint32_t len);
 
+/**
+ * Send a one byte transaction
+ */
 StatusCode i2c_write_byte(I2cBus i2c_bus, uint8_t addr, uint8_t data);
 
+/**
+ * Used to read from an i2c device, typically write_buf will contain the register and read_buf will contain the data
+ */
 StatusCode i2c_write_then_read(I2cBus i2c_bus, uint8_t addr, const uint8_t *write_buf, uint32_t write_len, uint8_t *read_buf, uint32_t read_len);

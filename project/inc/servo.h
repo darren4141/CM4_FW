@@ -46,14 +46,29 @@ typedef struct {
   float step;
 } Servo;
 
+/**
+ * Initialize serv module
+ */
 StatusCode servo_init();
 
+/**
+ * Deinitialize servo module - closes all threads
+ */
 StatusCode servo_deinit();
 
+/**
+ * Get current angle of given servo - value is locally stored and not taken from the actual servo
+ */
 StatusCode servo_get(ServoChannel channel, float *angle);
 
+/**
+ * Set the angle of a servo
+ */
 StatusCode servo_set_angle(ServoChannel channel, float angle);
 
-/* angular_velocity is measured in turns per second*/
+/**
+ * Move a servo to an angle at a given angular velocity
+ * Note: angular_velocity is measured in turns per second
+ */
 StatusCode servo_move_smooth(ServoChannel channel, float angle,
                              float angular_velocity);

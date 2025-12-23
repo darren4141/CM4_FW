@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "global_enums.h"
 
@@ -98,12 +98,27 @@ typedef struct {
   uint8_t reading;
 } IrledReading_s;
 
+/**
+ * Initialize irled sensor
+ */
 StatusCode irled_init();
 
+/**
+ * Deinitialize irled sensor - MUST CALL on program termination
+ */
 StatusCode irled_deinit();
 
+/**
+ * Starts the read thread for an irled sensor
+ */
 StatusCode irled_start_reading();
 
+/**
+ * Stop the read thread for an irled sensor
+ */
 StatusCode irled_stop_reading();
 
+/**
+ * Pop a sample from the irled ring buffer
+ */
 StatusCode irled_pop_sample(Max30102Sample *sample);

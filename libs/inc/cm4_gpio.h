@@ -51,20 +51,47 @@ typedef enum {
          : (x) == GPIO_EDGE_BOTH ? "BOTH"             \
          : "UNKNOWN")
 
+/**
+ * Check if the gpio registers have been initialized, if not, call gpio_regs_init
+ */
 StatusCode gpio_get_regs_initialized();
 
+/**
+ * Initialize the gpio registers by grabbing them from "/dev/gpiomem"
+ */
 StatusCode gpio_regs_init(void);
 
+/**
+ * Set the mode of a specified gpio pin
+ */
 StatusCode gpio_set_mode(int pin, GpioMode mode);
 
+/**
+ * Write to a specified gpio pin
+ */
 StatusCode gpio_write(int pin, int value);
 
+/**
+ * Read from a specified gpio pin
+ */
 StatusCode gpio_read(int pin, int *state);
 
+/**
+ * Toggle the state of a specified gpio pin
+ */
 StatusCode gpio_toggle(int pin);
 
+/**
+ * Set the edge action of a specified gpio pin
+ */
 StatusCode gpio_set_edge(int pin, GpioEdge edge);
 
+/**
+ * Get the edge state of a specified gpio pin, only works if the pin has been configured with gpio_set_edge
+ */
 StatusCode gpio_get_edge_event(int pin, int *event);
 
+/**
+ * Clear the edge state of a specified gpio pin, only works if the pin has been configured with gpio_set_edge
+ */
 StatusCode gpio_clear_edge(int pin);

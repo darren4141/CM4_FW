@@ -25,5 +25,12 @@
 
 #define CAL_VALUE         (uint32_t)(0.04096 / (float)(CURRENT_LSB * R_SHUNT))
 
+/**
+ * Initialize the current sense module
+ */
 StatusCode currentsense_init();
+
+/**
+ * Read the latest current sense value
+ */
 StatusCode currentsense_read(float *current_val);

@@ -18,8 +18,8 @@ def main():
     if not os.path.isfile(_aud_path):
         raise FileNotFoundError(_aud_path)
     
-    clib._pcm_init()
-    clib._pcm_play_file(os.fsencode(_aud_path))
+    clib._i2s_init()
+    clib._i2s_play_file(os.fsencode(_aud_path))
         
     try:
         while(True):
@@ -31,7 +31,7 @@ def main():
 
 def finish():
     # finish sequence goes here
-    clib._pcm_deinit()
+    clib._i2s_deinit()
     clib._gpio_write(16, 0)
     return
 

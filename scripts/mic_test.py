@@ -14,14 +14,14 @@ def main():
     if not os.path.isdir(_aud_path):
         raise FileNotFoundError(_aud_path)
     
-    clib._pcm_init()
-    clib._pcm_start_recording()
+    clib._i2s_init()
+    clib._i2s_start_recording()
         
     _cbuf = (c_uint8 * (1024 * 2))()
         
     try:
         while(True):
-            n = clib._pcm_rb_pop(_cbuf, len(_cbuf))
+            n = clib._i2s_rb_pop(_cbuf, len(_cbuf))
             if n > 0:
                 print("CHUNK")
                 print(_cbuf[:n])
@@ -33,7 +33,7 @@ def main():
 
 def finish():
     # finish sequence goes here
-    clib._pcm_deinit()
+    clib._i2s_deinit()
     return
 
 if __name__ == "__main__":

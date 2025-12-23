@@ -65,16 +65,32 @@ typedef enum {
 #define PCA_PRE_SCALE     0xFE
 #define PCA_TESTMODE      0xFF
 
+/**
+ * Check if the pwm controller has been initialized
+ */
 StatusCode pwm_controller_get_initialized();
 
+/**
+ * Initialize the pwm controller
+ */
 StatusCode pwm_controller_init(uint32_t pwm_freq);
 
+/**
+ * Deinitialize the pwm controller - recommneded to call on program termination
+ */
 StatusCode pwm_controller_deinit();
 
+/**
+ * Set the pwm output of a given channel - note this is non blocking
+ */
 StatusCode pwm_controller_set_channel(PCAChannel channel, float delay_percentage, float duty_cycle);
 
-/*Sets pwm channel to 0% duty cycle*/
+/**
+ * Sets pwm channel to 0% duty cycle
+ */
 StatusCode pwm_controller_stop_channel(PCAChannel channel);
 
-/*Sets pwm channel to 100% duty cycle*/
+/**
+ * Sets pwm channel to 100% duty cycle
+ */
 StatusCode pwm_controller_digital_set_channel(PCAChannel channel);

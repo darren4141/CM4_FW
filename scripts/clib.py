@@ -116,30 +116,30 @@ _currentsense_read = lib.currentsense_read
 _currentsense_read.argtypes = [POINTER(c_float)]
 _currentsense_read.restype = c_int
 
-_pcm_init = lib.pcm_init
-_pcm_init.argtypes = []
-_pcm_init.restype = c_int
+_i2s_init = lib.i2s_init
+_i2s_init.argtypes = []
+_i2s_init.restype = c_int
 
-_pcm_deinit = lib.pcm_deinit
-_pcm_deinit.argtypes = []
-_pcm_deinit.restype = c_int
+_i2s_deinit = lib.i2s_deinit
+_i2s_deinit.argtypes = []
+_i2s_deinit.restype = c_int
 
-_pcm_start_recording = lib.pcm_start_recording
-_pcm_start_recording.argtypes = []
-_pcm_start_recording.restype = c_int
+_i2s_start_recording = lib.i2s_start_recording
+_i2s_start_recording.argtypes = []
+_i2s_start_recording.restype = c_int
 
-_pcm_record_to_file = lib.pcm_record_to_file
-_pcm_record_to_file.argtypes = [c_char_p, c_double]
-_pcm_record_to_file.restype = c_int
+_i2s_record_to_file = lib.i2s_record_to_file
+_i2s_record_to_file.argtypes = [c_char_p, c_double]
+_i2s_record_to_file.restype = c_int
 
-_pcm_play_file = lib.pcm_play_file
-_pcm_play_file.argtypes = [c_char_p]
-_pcm_play_file.restype = c_int
+_i2s_play_file = lib.i2s_play_file
+_i2s_play_file.argtypes = [c_char_p]
+_i2s_play_file.restype = c_int
 
-_pcm_play_raw = lib.pcm_play_raw
-_pcm_play_raw.argtypes = [POINTER(c_int), c_size_t]
-_pcm_play_raw.restype = c_int
+_i2s_play_raw = lib.i2s_play_raw
+_i2s_play_raw.argtypes = [POINTER(c_int), c_size_t]
+_i2s_play_raw.restype = c_int
 
-_pcm_rb_pop = lib.pcm_rb_pop
-_pcm_rb_pop.argtypes = [POINTER(c_uint8), c_int32]
-_pcm_rb_pop.restype = c_int
+_i2s_rb_pop = lib.i2s_rb_pop
+_i2s_rb_pop.argtypes = [POINTER(c_uint8), c_int32]
+_i2s_rb_pop.restype = c_int
