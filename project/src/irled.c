@@ -1,9 +1,9 @@
 #include "irled.h"
 
 #include <pthread.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <time.h>
-#include <stdatomic.h>
 
 #include "cm4_gpio.h"
 #include "cm4_i2c.h"
@@ -15,19 +15,29 @@ static StatusCode irled_read_reg(uint8_t reg, uint8_t *val);
 
 #define IRLED_READ_REG(reg, val) irled_read_reg(reg, val);
 
-static pthread_t edge_thread;
+static pthread_t int_edge_thread;
 static atomic_bool is_thread_running = false;
 static struct timespec ts = {
   .tv_sec = 0, .tv_nsec = IRLED_THREAD_PERIOD_S * 1000 * 1000 * 1000
 };
 
-static void *edge_thread_func(void *arg);
+static void *int_edge_thread_func(void *arg);
 static StatusCode max30102_read_fifo_to_buffer();
 
 static Max30102Sample s_buffer[MAX30102_BUFFER_SIZE];
 static volatile uint16_t s_head = 0;
 static volatile uint16_t s_tail = 0;
 static pthread_mutex_t s_buffer_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static pthread_cond_t s_buffer_cv = PTHREAD_COND_INITIALIZER;
+
+static pthread_t hr_thread;
+static atomic_bool is_hr_thread_running = false;
+
+static atomic_int s_bpm = 0;
+static atomic_int s_confidence_pct = 0;
+
+static uint16_t irled_pop_multiple(Max30102Sample *out, uint16_t max_n);
 
 static StatusCode irled_read_reg(uint8_t reg, uint8_t *val)
 {
@@ -43,7 +53,7 @@ static StatusCode irled_read_reg(uint8_t reg, uint8_t *val)
   return STATUS_CODE_OK;
 }
 
-static void *edge_thread_func(void *arg)
+static void *int_edge_thread_func(void *arg)
 {
   (void)arg;
   int event;
@@ -120,10 +130,45 @@ static StatusCode max30102_read_fifo_to_buffer()
     if (s_head == s_tail) {
       s_tail = (s_tail + 1) % MAX30102_BUFFER_SIZE;
     }
-    pthread_mutex_unlock(&s_buffer_mutex);
   }
 
+  pthread_mutex_lock(&s_buffer_mutex);
+  pthread_cond_signal(&s_buffer_cv);
+  pthread_mutex_unlock(&s_buffer_mutex);
+
   return STATUS_CODE_OK;
+}
+
+static uint16_t irled_buffer_count_unsafe(void)
+{
+  if (s_head >= s_tail) {
+    return (uint16_t)(s_head - s_tail);
+  }
+  return (uint16_t)(MAX30102_BUFFER_SIZE - (s_tail - s_head));
+}
+
+static void *hr_calc_thread_func(void *arg)
+{
+  (void)arg;
+  Max30102Sample block[256];
+
+  #define IBI_BUF 8
+  uint32_t ibi_samples[IBI_BUF] = {0};
+  uint8_t ibi_head = 0;
+  uint8_t ibi_count = 0;
+
+  atomic_store(&is_hr_thread_running, true);
+
+  while (atomic_load(&is_thread_running)) {
+    uint16_t n = irled_pop_multiple(block, (uint16_t)(sizeof(block) / sizeof(block[0])));
+    if (n == 0) {
+      continue;
+    }
+    // TODO: add processing
+  }
+
+  atomic_store(&is_hr_thread_running, false);
+  return NULL;
 }
 
 StatusCode irled_init()
@@ -205,7 +250,7 @@ StatusCode irled_deinit()
 {
   if (atomic_load(&is_thread_running)) {
     atomic_store(&is_thread_running, false);
-    pthread_join(edge_thread, NULL);
+    pthread_join(int_edge_thread, NULL);
   }
 
   printf("Deinitializing\n");
@@ -219,11 +264,19 @@ StatusCode irled_deinit()
 StatusCode irled_start_reading()
 {
   atomic_store(&is_thread_running, true);
-  int threadRet = pthread_create(&edge_thread, NULL, edge_thread_func, NULL);
+  int threadRet = pthread_create(&int_edge_thread, NULL, int_edge_thread_func, NULL);
   if (threadRet != 0) {
     atomic_store(&is_thread_running, false);
     return STATUS_CODE_THREAD_FAILURE;
   }
+
+  threadRet = pthread_create(&hr_thread, NULL, hr_calc_thread_func, NULL);
+  if (threadRet != 0) {
+    atomic_store(&is_thread_running, false);
+    return STATUS_CODE_THREAD_FAILURE;
+  }
+
+
   return STATUS_CODE_OK;
 }
 
@@ -235,7 +288,7 @@ StatusCode irled_stop_reading(void)
 
   printf("stopping thread\n");
   atomic_store(&is_thread_running, false);
-  pthread_join(edge_thread, NULL);
+  pthread_join(int_edge_thread, NULL);
   printf("thread stopped\n");
   return STATUS_CODE_OK;
 }
@@ -255,4 +308,23 @@ StatusCode irled_pop_sample(Max30102Sample *sample)
 
   pthread_mutex_unlock(&s_buffer_mutex);
   return STATUS_CODE_OK;
+}
+
+static uint16_t irled_pop_multiple(Max30102Sample *out, uint16_t max_n)
+{
+  pthread_mutex_lock(&s_buffer_mutex);
+
+  while (atomic_load(&is_thread_running) && irled_buffer_count_unsafe() == 0) {
+    pthread_cond_wait(&s_buffer_cv, &s_buffer_mutex);
+  }
+
+  uint16_t n = 0;
+  while (n < max_n && s_head != s_tail) {
+    out[n] = s_buffer[s_tail];
+    s_tail = (s_tail + 1) % MAX30102_BUFFER_SIZE;
+    n++;
+  }
+
+  pthread_mutex_unlock(&s_buffer_mutex);
+  return n;
 }
