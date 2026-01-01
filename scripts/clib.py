@@ -108,6 +108,14 @@ _irled_pop_sample = lib.irled_pop_sample
 _irled_pop_sample.argtypes = [POINTER(Max30102Sample)]
 _irled_pop_sample.restype = c_int
 
+_irled_get_bpm = lib.irled_get_bpm
+_irled_get_bpm.argtypes = []
+_irled_get_bpm.restype = c_int
+
+_irled_get_confidence = lib.irled_get_confidence
+_irled_get_confidence.argtypes = []
+_irled_get_confidence.restype = c_int
+
 _currentsense_init = lib.currentsense_init
 _currentsense_init.argtypes = []
 _currentsense_init.restype = c_int

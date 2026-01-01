@@ -39,56 +39,13 @@ def main():
         print("_irled_start_reading() success")
 
     sample = clib.Max30102Sample()
+    prev_bpm = 0
     try:
-        idx = 0
-        ampl_list = [90, 90, 90, 90, 90]
-        running_avg = []
-        
-        
-        while True:
-            ret = 0
-            val_list = []
-            min_val = 10000000
-            ret = clib._irled_pop_sample(byref(sample))
-            if ret == 0:
-                counter += 1
-            
-            while ret == 0:
-                val_list.append(sample.ir)
-                if sample.ir < min_val:
-                    min_val = sample.ir
-                ret = clib._irled_pop_sample(byref(sample))
-                        
-            # print("batch popped")
-            hb = False
-            val_num = 0
-            for val in val_list:
-                val_num += 1
-                if min_val > 10000 and val - min_val >= 100 and val - min_val < 200:
-                    if counter < 7:
-                        continue
-                    hb = True
-                    counter += (val_num/10)
-                    bpm = 60 / (counter * 0.075)
-                    
-                    running_avg.append(bpm)
-                    if len(running_avg) > 5:
-                        running_avg.pop(0)
-                    bpm_avg = 0
-                    for item in running_avg:
-                        bpm_avg += item
-                    
-                    bpm_avg /= len(running_avg)
-                    print("beat", val-min_val, ampl_list, val, counter, bpm, bpm_avg)
-                    counter = 0
-                    ampl_list[idx] = val - min_val
-                    idx += 1
-                    idx %= 5
-                    
-                    continue
-            if hb == False:
-                print("...")
-            time.sleep(0.075)
+        bpm = clib._irled_get_bpm()
+        if bpm != prev_bpm:
+            print(bpm)
+            prev_bpm = bpm
+        time.sleep(0.075)
     except KeyboardInterrupt:
         pass
     finally:
