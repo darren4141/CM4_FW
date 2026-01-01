@@ -1,15 +1,6 @@
-#include "cm4_i2s.h"
+#pragma once
 
-#include <alsa/asoundlib.h>
-#include <pthread.h>
-#include <stdatomic.h>
-#include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
 
 #include "global_enums.h"
 
