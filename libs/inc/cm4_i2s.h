@@ -1,10 +1,15 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include "global_enums.h"
 
 #define I2_WAITING_PERIOD_S 1 / 10
+#define REC_RB_SIZE         (1u << 20)
+
+#define MIC_DEV             "plughw:2,0"
+#define SPEAKER_DEV         "plughw:2,1"
 
 /**
  * Initialize i2s bus

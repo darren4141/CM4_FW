@@ -400,7 +400,8 @@ StatusCode i2s_init()
   return STATUS_CODE_OK;
 }
 
-static inline playback_deinit() {
+static inline void playback_deinit()
+{
   pthread_mutex_lock(&s_playback_mutex);
   if (atomic_load(&is_playback_active)) {
     printf("stopping playback active\n");
@@ -421,7 +422,8 @@ static inline playback_deinit() {
   pthread_join(playback_thread, NULL);
 }
 
-static inline record_deinit() {
+static inline void record_deinit()
+{
   pthread_mutex_lock(&s_record_mutex);
   if (atomic_load(&is_record_active)) {
     printf("stopping record active\n");
