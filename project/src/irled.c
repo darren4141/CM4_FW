@@ -159,12 +159,115 @@ static void *hr_calc_thread_func(void *arg)
 
   atomic_store(&is_hr_thread_running, true);
 
+  float prev = 0.0f;
+  float prev2 = 0.0f;
+  float noise_est = 1.0f;
+  float threshold = 0.0f;
+  uint32_t last_peak_idx = 0;
+  uint32_t sample_idx = 0;
+
+  /**
+   * Alpha EMA calculation:
+   * Time constant = 1/alpha = 1000
+   * Sample rate is 400Hz
+   * 1000 / 400Hz = 2.5s which is well over the min heart rate ~= 50bpm = 1.25s
+   * Therefore HR = AC component will be ignored by the EMA
+   * If sample rate changes we must readjust alpha_ema
+   */
+  float alpha_ema = 0.001f;
+  float dc = 0.0f;
+  float fast_bpf = 0.0f;
+  float slow_bpf = 0.0f;
+
+  /**
+   * alpha BPF calculation:
+   * TC = 1 / alpha * sample_rate
+   * TCfast = 1 / 0.01 * 400 =  -> 0.25s -> 240 BPM
+   * TCslow = 1 / 0.0015 * 400 = 1.666s -> 36 BPM
+   */
+  float alpha_fast = 0.01f;
+  float alpha_slow = 0.0015f;
+
+  float alpha_smoothing = 0.2f;
+
+  uint32_t ibi_min = (uint32_t)(HR_SMPL_HZ * 60.0f / 200.0f);
+  uint32_t ibi_max = (uint32_t)(HR_SMPL_HZ * 60.0f / 40.0f);
+
+
   while (atomic_load(&is_thread_running)) {
     uint16_t n = irled_pop_multiple(block, (uint16_t)(sizeof(block) / sizeof(block[0])));
     if (n == 0) {
       continue;
     }
-    // TODO: add processing
+    for (uint16_t i = 0; i < n; i++) {
+      float val = (float)block[i].ir;
+
+      // Step 1: EMA
+      dc = dc + alpha_ema * (val - dc);
+
+      float ac = val - dc;
+
+      // Step 2: BPF
+      fast_bpf = fast_bpf + alpha_fast * (ac - fast_bpf);
+      slow_bpf = slow_bpf + alpha_slow * (ac - slow_bpf);
+
+      float bp = fast_bpf - slow_bpf;
+
+      // Step 3: smoothing
+      float y = prev + alpha_smoothing * (bp - prev);
+
+      // Step 4: update thresholding
+      float abs_y = (y >= 0.0f) ? y : -y;
+      noise_est = noise_est + 0.001f * (abs_y - noise_est);
+      threshold = 2.5f * noise_est;
+
+      // Step 5: process if local max
+      bool local_max = ((prev > prev2) && (prev > y));
+      bool above_thresh = (prev > threshold);
+      if (local_max && above_thresh) {
+        if (last_peak_idx == 0) {
+          last_peak_idx = sample_idx;
+        }
+        else {
+          uint32_t ibi = sample_idx - last_peak_idx;
+
+          // Store up to IBI_BUF vals in a ring buffer
+          if ((ibi >= ibi_min) && (ibi <= ibi_max)) {
+            last_peak_idx = sample_idx;
+
+            ibi_samples[ibi_head] = ibi;
+            ibi_head = (ibi_head + 1) % IBI_BUF;
+            if (ibi_count < IBI_BUF) {
+              ibi_count++;
+            }
+
+            uint32_t tmp[IBI_BUF];
+            for (uint8_t k = 0; k < ibi_count; k++) {
+              tmp[k] = ibi_samples[k];
+            }
+
+            // Take the median of the ring buffer
+            for (uint8_t a = 1; a < ibi_count; a++) {
+              uint32_t key = tmp[a];
+              int b = a - 1;
+              while (b >= 0 && tmp[b] > key) {
+                tmp[b + 1] = tmp[b];
+                b--;
+              }
+              tmp[b + 1] = key;
+            }
+            uint32_t median = tmp[ibi_count / 2];
+
+            float bpm = 60.0f * HR_SMPL_HZ / (float)median;
+
+            atomic_store(&s_bpm, (int)(bpm + 0.5));
+          }
+        }
+      }
+      prev2 = prev;
+      prev = y;
+      sample_idx++;
+    }
   }
 
   atomic_store(&is_hr_thread_running, false);
@@ -327,4 +430,14 @@ static uint16_t irled_pop_multiple(Max30102Sample *out, uint16_t max_n)
 
   pthread_mutex_unlock(&s_buffer_mutex);
   return n;
+}
+
+int irled_get_bpm(void)
+{
+  return atomic_load(&s_bpm);
+}
+
+int irled_get_confidence(void)
+{
+  return atomic_load(&s_confidence_pct);
 }

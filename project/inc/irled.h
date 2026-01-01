@@ -81,6 +81,8 @@
 
 #define MAX30102_BUFFER_SIZE          256
 
+#define HR_SMPL_HZ                    400
+
 typedef struct {
   uint32_t ir;
   uint32_t red;
@@ -122,3 +124,7 @@ StatusCode irled_stop_reading();
  * Pop a sample from the irled ring buffer
  */
 StatusCode irled_pop_sample(Max30102Sample *sample);
+
+int irled_get_bpm(void);
+
+int irled_get_confidence(void);
