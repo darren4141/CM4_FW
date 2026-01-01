@@ -56,7 +56,7 @@ typedef struct {
 static PlaybackThreadInfo_s playback_thread_info;
 static RecordThreadInfo_s record_thread_info;
 
-static uint8_t g_rec_rb[RING_BUF_SIZE];
+static uint8_t g_rec_rb[REC_RB_SIZE];
 static _Atomic uint32_t g_rb_w = 0;   // write index
 static _Atomic uint32_t g_rb_r = 0;   // read index
 
@@ -75,7 +75,7 @@ static inline uint32_t rb_used(uint32_t r, uint32_t w)
 
 static inline uint32_t rb_free(uint32_t r, uint32_t w)
 {
-  return RING_BUF_SIZE - rb_used(r, w);
+  return REC_RB_SIZE - rb_used(r, w);
 }
 
 static void rb_push(const uint8_t *data, uint32_t len)
@@ -88,8 +88,8 @@ static void rb_push(const uint8_t *data, uint32_t len)
     return;
   }
 
-  uint32_t wpos = w % RING_BUF_SIZE;
-  uint32_t first = RING_BUF_SIZE - wpos;
+  uint32_t wpos = w % REC_RB_SIZE;
+  uint32_t first = REC_RB_SIZE - wpos;
 
   if (first > len) {
     first = len;
@@ -113,8 +113,8 @@ int i2s_rb_pop(uint8_t *out, uint32_t len)
 
   uint32_t n = (used < len) ? used : len;
 
-  uint32_t rpos = r % RING_BUF_SIZE;
-  uint32_t first = RING_BUF_SIZE - rpos;
+  uint32_t rpos = r % REC_RB_SIZE;
+  uint32_t first = REC_RB_SIZE - rpos;
 
   if (first > n) {
     first = n;

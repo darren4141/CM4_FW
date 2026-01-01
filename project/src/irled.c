@@ -1,5 +1,6 @@
 #include "irled.h"
 
+#include <math.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdio.h>
@@ -18,7 +19,8 @@ static StatusCode irled_read_reg(uint8_t reg, uint8_t *val);
 static pthread_t int_edge_thread;
 static atomic_bool is_thread_running = false;
 static struct timespec ts = {
-  .tv_sec = 0, .tv_nsec = IRLED_THREAD_PERIOD_S * 1000 * 1000 * 1000
+  .tv_sec = IRLED_THREAD_PERIOD_NS / NSEC_PER_SEC,
+  .tv_nsec = IRLED_THREAD_PERIOD_NS % NSEC_PER_SEC,
 };
 
 static void *int_edge_thread_func(void *arg);
@@ -39,6 +41,8 @@ static atomic_int s_confidence_pct = 0;
 
 static uint16_t irled_pop_multiple(Max30102Sample *out, uint16_t max_n);
 
+static bool new_hb = false;
+
 static StatusCode irled_read_reg(uint8_t reg, uint8_t *val)
 {
   uint8_t read_buf;
@@ -57,20 +61,24 @@ static void *int_edge_thread_func(void *arg)
 {
   (void)arg;
   int event;
+  // int state;
+  uint32_t loops = 0;
+
   while (atomic_load(&is_thread_running)) {
     gpio_get_edge_event(INT_PIN_1, &event);
+    // gpio_read(INT_PIN_1, &state);
+
+    // if ((loops++ % 5) == 0) {
+    // printf("[INT] loop alive, event=%d state=%d\n", event, state);
+    // }
     if (event == 1) {
-// printf("Interrupt triggered\n");
+      // printf("interrupt triggered\n");
       gpio_clear_edge(INT_PIN_1);
       uint8_t status = 0;
       IRLED_READ_REG(MX_IS1, &status);
 
       if (status & IS1_A_FULL) {
         StatusCode ret = max30102_read_fifo_to_buffer();
-        if (ret != STATUS_CODE_OK) {
-          struct timespec backoff = {.tv_sec = 0, .tv_nsec = 200 * 1000 * 1000};
-          nanosleep(&backoff, NULL);
-        }
       }
       else {
         printf("Warning: interrupt fired with invalid status: %d\n", status);
@@ -82,57 +90,58 @@ static void *int_edge_thread_func(void *arg)
   return NULL;
 }
 
-static StatusCode max30102_read_fifo_to_buffer()
+static StatusCode max30102_read_fifo_to_buffer(void)
 {
+  StatusCode ret;
 
-  uint8_t wr = 0;
-  uint8_t rd = 0;
-
-  StatusCode ret = STATUS_CODE_OK;
+  uint8_t wr = 0, rd = 0;
 
   ret = IRLED_READ_REG(MX_FIFO_WR_PTR, &wr);
   if (ret != STATUS_CODE_OK) {
-    printf("fifo wr ptr read failed with exit code: %u\n", ret);
     return ret;
   }
+
   ret = IRLED_READ_REG(MX_FIFO_RD_PTR, &rd);
   if (ret != STATUS_CODE_OK) {
-    printf("fifo wr ptr read failed with exit code: %u\n", ret);
     return ret;
   }
 
   uint8_t count = (wr - rd) & 0x1F;
-
-  if (count > 16) {
-    count = 16;
+  if (count == 0) {
+    return STATUS_CODE_FAILED;
   }
 
-  for (uint8_t i = 0; i < count; i++) {
-    Max30102Sample sample;
-
-    uint8_t buf[6];
-    StatusCode ret = i2c_write_then_read(I2C_BUS_2, MX_I2C_ADDR,
-                                         (uint8_t[]) {MX_FIFO_DATA}, 1, buf, 6);
-    if (ret != STATUS_CODE_OK) {
-      printf("i2c read from fifo data register failed\n");
-      return STATUS_CODE_FAILED;
-    }
-
-    sample.ir = ((uint32_t)(buf[0] & 0x03) << 16 | (uint32_t)(buf[1] << 8)
-                 | (uint32_t)(buf[2]));
-
-    sample.red = ((uint32_t)(buf[3] & 0x03) << 16 | (uint32_t)(buf[4] << 8)
-                  | (uint32_t)(buf[5]));
-
-    pthread_mutex_lock(&s_buffer_mutex);
-    s_buffer[s_head] = sample;
-    s_head = (s_head + 1) % MAX30102_BUFFER_SIZE;
-    if (s_head == s_tail) {
-      s_tail = (s_tail + 1) % MAX30102_BUFFER_SIZE;
-    }
-  }
+  uint8_t to_read = (count > 16) ? 16 : count;
 
   pthread_mutex_lock(&s_buffer_mutex);
+
+  do {
+    for (uint8_t i = 0; i < to_read; i++) {
+      uint8_t buf[6];
+      ret = i2c_write_then_read(I2C_BUS_2, MX_I2C_ADDR,
+                                (uint8_t[]) { MX_FIFO_DATA }, 1, buf, 6);
+      if (ret != STATUS_CODE_OK) {
+        pthread_mutex_unlock(&s_buffer_mutex);
+        return STATUS_CODE_FAILED;
+      }
+
+      Max30102Sample sample;
+      sample.ir = ((uint32_t)(buf[0] & 0x03) << 16)
+                  | ((uint32_t)buf[1] << 8) | (uint32_t)buf[2];
+      sample.red = ((uint32_t)(buf[3] & 0x03) << 16)
+                   | ((uint32_t)buf[4] << 8) | (uint32_t)buf[5];
+
+      s_buffer[s_head] = sample;
+      s_head = (s_head + 1) % MAX30102_BUFFER_SIZE;
+      if (s_head == s_tail) {
+        s_tail = (s_tail + 1) % MAX30102_BUFFER_SIZE;
+      }
+    }
+
+    count -= to_read;
+    to_read = (count > 16) ? 16 : count;
+  } while (count > 0);
+
   pthread_cond_signal(&s_buffer_cv);
   pthread_mutex_unlock(&s_buffer_mutex);
 
@@ -149,6 +158,8 @@ static uint16_t irled_buffer_count_unsafe(void)
 
 static void *hr_calc_thread_func(void *arg)
 {
+
+  printf("HR calc thread starting...\n");
   (void)arg;
   Max30102Sample block[256];
 
@@ -168,13 +179,13 @@ static void *hr_calc_thread_func(void *arg)
 
   /**
    * Alpha EMA calculation:
-   * Time constant = 1/alpha = 1000
-   * Sample rate is 400Hz
-   * 1000 / 400Hz = 2.5s which is well over the min heart rate ~= 50bpm = 1.25s
+   * Time constant = 1/alpha = 150
+   * Sample rate is 100Hz
+   * 150 / 100Hz = 1.5 which is well over the min heart rate ~= 50bpm = 1.25s
    * Therefore HR = AC component will be ignored by the EMA
    * If sample rate changes we must readjust alpha_ema
    */
-  float alpha_ema = 0.001f;
+  float alpha_ema = 0.05f;
   float dc = 0.0f;
   float fast_bpf = 0.0f;
   float slow_bpf = 0.0f;
@@ -182,54 +193,80 @@ static void *hr_calc_thread_func(void *arg)
   /**
    * alpha BPF calculation:
    * TC = 1 / alpha * sample_rate
-   * TCfast = 1 / 0.01 * 400 =  -> 0.25s -> 240 BPM
-   * TCslow = 1 / 0.0015 * 400 = 1.666s -> 36 BPM
+   * TCfast = 1 / (0.04 * 100) =  -> 0.25s -> 240 BPM
+   * TCslow = 1 / (0.006 * 100) = 1.666s -> 36 BPM
    */
-  float alpha_fast = 0.01f;
-  float alpha_slow = 0.0015f;
+  float alpha_fast = 0.04f;
+  float alpha_slow = 0.00001f;
 
-  float alpha_smoothing = 0.2f;
+  float alpha_smoothing = 0.1f;
+
+  float alpha_threshold = 0.05;
 
   uint32_t ibi_min = (uint32_t)(HR_SMPL_HZ * 60.0f / 200.0f);
   uint32_t ibi_max = (uint32_t)(HR_SMPL_HZ * 60.0f / 40.0f);
 
+  printf("ibi_min: %u, ibi_max: %u\n", ibi_min, ibi_max);
 
   while (atomic_load(&is_thread_running)) {
     uint16_t n = irled_pop_multiple(block, (uint16_t)(sizeof(block) / sizeof(block[0])));
+
+    // printf("n: %u\n", n);
+    // time_t current_time;
+
+    //// Obtain current time in seconds since the Unix epoch
+    // current_time = time(NULL);
+
+    //// Convert to local time format string and print
+    // printf("Current time is %s", ctime(&current_time));
+
     if (n == 0) {
+      struct timespec ts = {0, 1000000};
+      nanosleep(&ts, NULL);
       continue;
     }
+
+    // printf("%f \n", (float)block[0].ir);
+
     for (uint16_t i = 0; i < n; i++) {
       float val = (float)block[i].ir;
+      // printf("%f \n", val);
 
       // Step 1: EMA
       dc = dc + alpha_ema * (val - dc);
 
       float ac = val - dc;
 
+      // printf("AC:%f ", ac);
       // Step 2: BPF
       fast_bpf = fast_bpf + alpha_fast * (ac - fast_bpf);
       slow_bpf = slow_bpf + alpha_slow * (ac - slow_bpf);
 
       float bp = fast_bpf - slow_bpf;
 
+      // printf("BPF:%f ", bp);
       // Step 3: smoothing
       float y = prev + alpha_smoothing * (bp - prev);
+      // printf("Smooth:%f ", y);
 
       // Step 4: update thresholding
-      float abs_y = (y >= 0.0f) ? y : -y;
-      noise_est = noise_est + 0.001f * (abs_y - noise_est);
-      threshold = 2.5f * noise_est;
+      noise_est = noise_est + alpha_threshold * (y - noise_est);
+      threshold = 1.0f * noise_est;
+
+      // printf("Threshold:%f\n", threshold);
 
       // Step 5: process if local max
       bool local_max = ((prev > prev2) && (prev > y));
-      bool above_thresh = (prev > threshold);
+      bool above_thresh = (fabsf(prev) > threshold);
       if (local_max && above_thresh) {
+        printf("detected peak\n");
         if (last_peak_idx == 0) {
+          printf("First peak detected, index: %u\n", sample_idx);
           last_peak_idx = sample_idx;
         }
         else {
           uint32_t ibi = sample_idx - last_peak_idx;
+          printf("%u", ibi);
 
           // Store up to IBI_BUF vals in a ring buffer
           if ((ibi >= ibi_min) && (ibi <= ibi_max)) {
@@ -261,6 +298,11 @@ static void *hr_calc_thread_func(void *arg)
             float bpm = 60.0f * HR_SMPL_HZ / (float)median;
 
             atomic_store(&s_bpm, (int)(bpm + 0.5));
+            new_hb = true;
+            printf("-------------------------HB----------------------------\n");
+          }
+          else if (ibi >= ibi_min) {
+            last_peak_idx = sample_idx;
           }
         }
       }
@@ -327,7 +369,7 @@ StatusCode irled_init()
 
   IRLED_WRITE_REG(MX_FIFO_CONFIG, FIFO_CONFIG_SAMPLE_AVERAGE_4
                   | FIFO_CONFIG_ROLLOVER_EN
-                  | FIFO_CONFIG_A_FULL_10_SAMPLES);
+                  | FIFO_CONFIG_A_FULL_4_SAMPLES);
 
   IRLED_WRITE_REG(MX_FIFO_WR_PTR, 0x00);
   IRLED_WRITE_REG(MX_OVF_COUNTER, 0x00);
@@ -391,8 +433,19 @@ StatusCode irled_stop_reading(void)
 
   printf("stopping thread\n");
   atomic_store(&is_thread_running, false);
+
+  // Wake up hr thread if it's blocked in cond_wait
+  pthread_mutex_lock(&s_buffer_mutex);
+  pthread_cond_broadcast(&s_buffer_cv);
+  pthread_mutex_unlock(&s_buffer_mutex);
+
   pthread_join(int_edge_thread, NULL);
-  printf("thread stopped\n");
+
+  if (atomic_load(&is_hr_thread_running)) {
+    pthread_join(hr_thread, NULL);
+  }
+
+  printf("threads stopped\n");
   return STATUS_CODE_OK;
 }
 
@@ -440,4 +493,15 @@ int irled_get_bpm(void)
 int irled_get_confidence(void)
 {
   return atomic_load(&s_confidence_pct);
+}
+
+int irled_get_hb_state(void)
+{
+  return new_hb ? 1 : 0;
+}
+
+int irled_clear_hb_state(void)
+{
+  new_hb = false;
+  return 1;
 }

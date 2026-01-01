@@ -26,6 +26,15 @@ def main():
     else:
         print("_i2c_init() success")
         
+    pwm_freq = c_int(50)
+    ret = clib._pwm_controller_init(pwm_freq)
+    if ret != 0:
+        print("_pwm_controller_init() failed")
+    else:
+        print("_pwm_controller_init() success")
+        
+    clib._blinky_init()
+        
     ret = clib._irled_init()
     if ret != 0:
         print("_irled_init() failed")
@@ -41,11 +50,11 @@ def main():
     sample = clib.Max30102Sample()
     prev_bpm = 0
     try:
-        bpm = clib._irled_get_bpm()
-        if bpm != prev_bpm:
-            print(bpm)
-            prev_bpm = bpm
-        time.sleep(0.075)
+        while True:
+            if clib._irled_get_hb_state() == 1:
+                clib._blinky_toggle(4)
+                clib._irled_clear_hb_state()
+            time.sleep(0.05)
     except KeyboardInterrupt:
         pass
     finally:

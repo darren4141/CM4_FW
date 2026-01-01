@@ -73,15 +73,16 @@
 #define MX_REV_ID                     0xFE
 #define MX_PART_ID                    0xFF
 
-#define IRLED_THREAD_FREQ_HZ          10
-#define IRLED_THREAD_PERIOD_S         1 / IRLED_THREAD_FREQ_HZ
+#define IRLED_THREAD_FREQ_HZ          40
+#define NSEC_PER_SEC                  1000000000L
+#define IRLED_THREAD_PERIOD_NS        (NSEC_PER_SEC / IRLED_THREAD_FREQ_HZ)
 
 #define INT_PIN_1                     14
 #define INT_PIN_2                     15
 
 #define MAX30102_BUFFER_SIZE          256
 
-#define HR_SMPL_HZ                    400
+#define HR_SMPL_HZ                    100
 
 typedef struct {
   uint32_t ir;
@@ -128,3 +129,8 @@ StatusCode irled_pop_sample(Max30102Sample *sample);
 int irled_get_bpm(void);
 
 int irled_get_confidence(void);
+
+int irled_get_hb_state(void);
+
+int irled_clear_hb_state(void);
+
