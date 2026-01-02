@@ -7,6 +7,8 @@
 
 static LedState led_state[2];
 
+static VerbosityLevel verbosity = VERBOSITY_NONE;
+
 StatusCode blinky_init(void)
 {
 
@@ -25,7 +27,7 @@ StatusCode blinky_init(void)
 
 StatusCode blinky_set(LedChannel channel, LedState state)
 {
-  printf("Calling blinky_set(%u, %u)\n", channel, state);
+  VERB1_PRINTF("Calling blinky_set(%u, %u)\n", channel, state);
   StatusCode ret = STATUS_CODE_OK;
   if ((channel != LED_CHANNEL_4) && (channel != LED_CHANNEL_5)) {
     printf("Led channel %d is invalid\n", channel);
@@ -55,6 +57,7 @@ StatusCode blinky_set(LedChannel channel, LedState state)
 
 StatusCode blinky_toggle(LedChannel channel)
 {
+  VERB1_PRINTF("Calling blinky_toggle(%u)\n", channel);
   StatusCode ret = STATUS_CODE_OK;
   if ((channel != LED_CHANNEL_4) && (channel != LED_CHANNEL_5)) {
     printf("Led channel %d is invalid\n", channel);

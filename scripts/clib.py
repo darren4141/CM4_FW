@@ -154,7 +154,7 @@ _i2s_play_file.argtypes = [c_char_p]
 _i2s_play_file.restype = c_int
 
 _i2s_play_raw = lib.i2s_play_raw
-_i2s_play_raw.argtypes = [POINTER(c_int), c_size_t]
+_i2s_play_raw.argtypes = [POINTER(c_uint8), c_size_t]
 _i2s_play_raw.restype = c_int
 
 def i2s_play_raw(py_bytes: bytes) -> int:

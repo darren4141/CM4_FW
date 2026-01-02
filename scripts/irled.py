@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import clib
 import time
 from ctypes import c_int, byref
@@ -52,6 +54,7 @@ def main():
     try:
         while True:
             if clib._irled_get_hb_state() == 1:
+                print(clib._irled_get_bpm())
                 clib._blinky_toggle(4)
                 clib._irled_clear_hb_state()
             time.sleep(0.05)
@@ -61,6 +64,7 @@ def main():
         finish()
 
 def finish():
+    clib._blinky_set(4, 0)
     clib._irled_stop_reading()
     clib._irled_deinit()
     clib._i2c_deinit(2)

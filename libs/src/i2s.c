@@ -618,6 +618,7 @@ StatusCode i2s_play_raw(const uint8_t *data, const size_t data_size)
     pthread_mutex_lock(&s_playback_mutex);
   }
 
+  free(playback_thread_info.data);
   playback_thread_info.playback = NULL;
   int ret = i2s_open_config(&playback_thread_info.playback, SPEAKER_DEV, SND_PCM_STREAM_PLAYBACK, kRate, pb_kCh, pb_kFmt, kPeriodFrames);
   if (ret < 0) {
@@ -625,8 +626,14 @@ StatusCode i2s_play_raw(const uint8_t *data, const size_t data_size)
     return STATUS_CODE_FAILED;
   }
 
-  free(playback_thread_info.data);
-  playback_thread_info.data = data;
+  uint8_t *owned = malloc(data_size);
+  if (!owned) {
+    pthread_mutex_unlock(&s_playback_mutex);
+    return STATUS_CODE_OUT_OF_MEMORY;
+  }
+  memcpy(owned, data, data_size);
+
+  playback_thread_info.data = owned;
   playback_thread_info.data_len = (size_t)data_size;
 
   const size_t bytes_per_sample = snd_pcm_format_physical_width(pb_kFmt) / 8;

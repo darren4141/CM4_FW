@@ -20,18 +20,21 @@ def main():
     _cbuf = (c_uint8 * (1024 * 2))()
         
     try:
-        while(True):
-            n = clib._i2s_rb_pop(_cbuf, len(_cbuf))
-            if n > 0:
-                print("CHUNK")
-                print(_cbuf[:n])
-            time.sleep(0.01)
+        with open("test_record.pcm", "wb") as f:
+            while True:
+                n = clib._i2s_rb_pop(_cbuf, len(_cbuf))
+                if n > 0:
+                    f.write(bytes(_cbuf[:n]))
+                else:
+                    time.sleep(0.001)
     except KeyboardInterrupt:
         pass
     finally:
-        finish()
+        clib._i2s_deinit()
 
-def finish():
+    print("Wrote:")
+
+def finish(): 
     # finish sequence goes here
     clib._i2s_deinit()
     return

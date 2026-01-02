@@ -43,7 +43,7 @@ static uint16_t irled_pop_multiple(Max30102Sample *out, uint16_t max_n);
 
 static bool new_hb = false;
 
-static VerbosityLevel verbosity = VERBOSITY_NONE;
+static VerbosityLevel verbosity = VERBOSITY_LEVEL_1;
 
 static StatusCode irled_read_reg(uint8_t reg, uint8_t *val)
 {
@@ -82,6 +82,9 @@ static void *int_edge_thread_func(void *arg)
       else {
         printf("Warning: interrupt fired with invalid status: %d\n", status);
       }
+    }
+    else {
+      VERB1_PRINTF("no edge detected\n");
     }
     nanosleep(&ts, NULL);
   }
@@ -207,10 +210,13 @@ static void *hr_calc_thread_func(void *arg)
 
   VERB2_PRINTF("ibi_min: %u, ibi_max: %u\n", ibi_min, ibi_max);
 
+  // uint32_t count = 0;
+
   while (atomic_load(&is_thread_running)) {
     uint16_t n = irled_pop_multiple(block, (uint16_t)(sizeof(block) / sizeof(block[0])));
+    // count += n;
 
-    // printf("n: %u\n", n);
+    // printf("nc: %u\n", count);
     // time_t current_time;
 
     // current_time = time(NULL);
@@ -292,7 +298,7 @@ static void *hr_calc_thread_func(void *arg)
 
             float bpm = 60.0f * HR_SMPL_HZ / (float)median;
 
-            atomic_store(&s_bpm, (int)(bpm + 0.5));
+            atomic_store(&s_bpm, (int)(bpm));
             new_hb = true;
             VERB1_PRINTF("-------------------------HB----------------------------\n");
           }
