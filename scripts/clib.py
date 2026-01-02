@@ -157,6 +157,10 @@ _i2s_play_raw = lib.i2s_play_raw
 _i2s_play_raw.argtypes = [POINTER(c_int), c_size_t]
 _i2s_play_raw.restype = c_int
 
+def i2s_play_raw(py_bytes: bytes) -> int:
+    buf = (c_uint8 * len(py_bytes)).from_buffer_copy(py_bytes)
+    return _i2s_play_raw(buf, c_size_t(len(py_bytes)))
+
 _i2s_rb_pop = lib.i2s_rb_pop
 _i2s_rb_pop.argtypes = [POINTER(c_uint8), c_int32]
 _i2s_rb_pop.restype = c_int

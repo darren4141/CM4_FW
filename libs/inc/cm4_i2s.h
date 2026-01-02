@@ -5,6 +5,18 @@
 
 #include "global_enums.h"
 
+/**
+ * Sound settings:
+ *
+ * Playback format: S16_LE
+ * Playback channels: 1
+ *
+ * Recording format: S16_LE
+ * Recording channels: 2
+ * Sample rate: 48000
+ * Audio type: Mono
+ */
+
 #define I2_WAITING_PERIOD_S 1 / 10
 #define REC_RB_SIZE         (1u << 20)
 
