@@ -1,8 +1,8 @@
 #pragma once
 
-#define KHZ(x) ((x) * 1000U)
-#define MHZ(x) ((x) * 1000000U)
-#define GHZ(x) ((x) * 1000000000U)
+#define KHZ(x)            ((x) * 1000U)
+#define MHZ(x)            ((x) * 1000000U)
+#define GHZ(x)            ((x) * 1000000000U)
 
 typedef enum {
   STATUS_CODE_OK                  = 0,
@@ -14,6 +14,24 @@ typedef enum {
   STATUS_CODE_OUT_OF_MEMORY       = -6,
   STATUS_CODE_FAILED              = -7,
 } StatusCode;
+
+typedef enum {
+  VERBOSITY_NONE    = 0,
+  VERBOSITY_LEVEL_1 = 1,
+  VERBOSITY_LEVEL_2 = 2,
+  VERBOSITY_LEVEL_3 = 3,
+} VerbosityLevel;
+
+#define VERB_PRINTF(level, ...)                              \
+        do {                                                      \
+          if (verbosity == (level)) {                             \
+            printf(__VA_ARGS__);                                  \
+          }                                                       \
+        } while (0)
+
+#define VERB1_PRINTF(...) VERB_PRINTF(VERBOSITY_LEVEL_1, __VA_ARGS__)
+#define VERB2_PRINTF(...) VERB_PRINTF(VERBOSITY_LEVEL_2, __VA_ARGS__)
+#define VERB3_PRINTF(...) VERB_PRINTF(VERBOSITY_LEVEL_3, __VA_ARGS__)
 
 #define TRY(expr)                                                              \
         do {                                                                         \

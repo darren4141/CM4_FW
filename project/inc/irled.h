@@ -134,3 +134,4 @@ int irled_get_hb_state(void);
 
 int irled_clear_hb_state(void);
 
+void irled_set_verbosity_level(VerbosityLevel new_verbosity);
