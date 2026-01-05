@@ -43,7 +43,7 @@ static uint16_t irled_pop_multiple(Max30102Sample *out, uint16_t max_n);
 
 static bool new_hb = false;
 
-static VerbosityLevel verbosity = VERBOSITY_LEVEL_1;
+static VerbosityLevel verbosity = VERBOSITY_NONE;
 
 static StatusCode irled_read_reg(uint8_t reg, uint8_t *val)
 {
@@ -510,4 +510,5 @@ int irled_clear_hb_state(void)
 void irled_set_verbosity_level(VerbosityLevel new_verbosity)
 {
   verbosity = new_verbosity;
+  printf("Set verbosity level to %u\n", verbosity);
 }

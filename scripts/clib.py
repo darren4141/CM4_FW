@@ -124,6 +124,9 @@ _irled_clear_hb_state = lib.irled_clear_hb_state
 _irled_clear_hb_state.argtypes = []
 _irled_clear_hb_state.restype = c_int
 
+_irled_set_verbosity_level = lib.irled_set_verbosity_level
+_irled_set_verbosity_level.argtypes = [c_int]
+_irled_set_verbosity_level.restype = None
 
 _currentsense_init = lib.currentsense_init
 _currentsense_init.argtypes = []

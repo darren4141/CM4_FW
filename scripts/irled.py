@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import clib
 import time
 from ctypes import c_int, byref
@@ -11,7 +12,7 @@ def avg_list(list_in: list):
         sum += item
     return (sum / 5) - 40
 
-def main():
+def main(args):
     counter = -0.075
 
     ret = clib._gpio_regs_init()
@@ -43,6 +44,8 @@ def main():
     else:
         print("_irled_init() success")
         
+    clib._irled_set_verbosity_level(args.verbosity)
+    
     ret = clib._irled_start_reading()
     if ret != 0:
         print("_irled_start_reading() failed")
@@ -63,6 +66,12 @@ def main():
     finally:
         finish()
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Irled test program")
+    parser.add_argument("-u", "--usage", type=int, default=0)
+    parser.add_argument("-v", "--verbosity", type=int, default=0)
+    return parser.parse_args()
+
 def finish():
     clib._blinky_set(4, 0)
     clib._irled_stop_reading()
@@ -70,4 +79,5 @@ def finish():
     clib._i2c_deinit(2)
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args)
