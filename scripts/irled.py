@@ -52,19 +52,35 @@ def main(args):
     else:
         print("_irled_start_reading() success")
 
-    sample = clib.Max30102Sample()
-    prev_bpm = 0
-    try:
-        while True:
-            if clib._irled_get_hb_state() == 1:
-                print(clib._irled_get_bpm())
-                clib._blinky_toggle(4)
-                clib._irled_clear_hb_state()
-            time.sleep(0.05)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        finish()
+    
+    if args.usage == 0:
+        ret = clib._irled_start_calculation_thread()
+        if ret != 0:
+            print("_irled_start_calculation_thread() failed")
+        else:
+            print("_irled_start_calculation_thread() success")
+        
+        try:
+            while True:
+                if clib._irled_get_hb_state() == 1:
+                    print(clib._irled_get_bpm())
+                    clib._blinky_toggle(4)
+                    clib._irled_clear_hb_state()
+                time.sleep(0.05)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            finish()
+    
+    if args.usage == 1:
+        sample = clib.Max30102Sample()
+        try:
+            while True:
+                time.sleep(0.05)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            finish()
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Irled test program")

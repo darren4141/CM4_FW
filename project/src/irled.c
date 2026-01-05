@@ -33,7 +33,7 @@ static pthread_mutex_t s_buffer_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static pthread_cond_t s_buffer_cv = PTHREAD_COND_INITIALIZER;
 
-static pthread_t hr_thread;
+static pthread_t hr_calc_thread;
 static atomic_bool is_hr_thread_running = false;
 
 static atomic_int s_bpm = 0;
@@ -88,7 +88,7 @@ static void *int_edge_thread_func(void *arg)
     }
     nanosleep(&ts, NULL);
   }
-  VERB1_PRINTF("exiting thread\n");
+  printf("exiting int thread\n");
   return NULL;
 }
 
@@ -170,8 +170,6 @@ static void *hr_calc_thread_func(void *arg)
   uint8_t ibi_head = 0;
   uint8_t ibi_count = 0;
 
-  atomic_store(&is_hr_thread_running, true);
-
   float prev = 0.0f;
   float prev2 = 0.0f;
   float noise_est = 1.0f;
@@ -212,7 +210,7 @@ static void *hr_calc_thread_func(void *arg)
 
   // uint32_t count = 0;
 
-  while (atomic_load(&is_thread_running)) {
+  while (atomic_load(&is_hr_thread_running)) {
     uint16_t n = irled_pop_multiple(block, (uint16_t)(sizeof(block) / sizeof(block[0])));
     // count += n;
 
@@ -313,7 +311,7 @@ static void *hr_calc_thread_func(void *arg)
     }
   }
 
-  atomic_store(&is_hr_thread_running, false);
+  printf("Exiting hr calculation thread\n");
   return NULL;
 }
 
@@ -399,6 +397,11 @@ StatusCode irled_deinit()
     pthread_join(int_edge_thread, NULL);
   }
 
+  if (atomic_load(&is_hr_thread_running)) {
+    atomic_store(&is_hr_thread_running, false);
+    pthread_join(hr_calc_thread, NULL);
+  }
+
   printf("Deinitializing\n");
 
   IRLED_WRITE_REG(MX_MODE_CONFIG, MODE_CONFIG_RESET);
@@ -416,34 +419,43 @@ StatusCode irled_start_reading()
     return STATUS_CODE_THREAD_FAILURE;
   }
 
-  threadRet = pthread_create(&hr_thread, NULL, hr_calc_thread_func, NULL);
+
+  return STATUS_CODE_OK;
+}
+
+StatusCode irled_start_calculation_thread()
+{
+  atomic_store(&is_hr_thread_running, true);
+  int threadRet = pthread_create(&hr_calc_thread, NULL, hr_calc_thread_func, NULL);
   if (threadRet != 0) {
-    atomic_store(&is_thread_running, false);
+    atomic_store(&is_hr_thread_running, false);
     return STATUS_CODE_THREAD_FAILURE;
   }
-
 
   return STATUS_CODE_OK;
 }
 
 StatusCode irled_stop_reading(void)
 {
-  if (!atomic_load(&is_thread_running)) {
+  if ((!atomic_load(&is_thread_running)) && (!atomic_load(&is_hr_thread_running))) {
     return STATUS_CODE_OK;
   }
 
-  printf("stopping thread\n");
-  atomic_store(&is_thread_running, false);
+  if (atomic_load(&is_thread_running)) {
+    printf("stopping int thread\n");
+    atomic_store(&is_thread_running, false);
+    pthread_join(int_edge_thread, NULL);
+  }
 
   // Wake up hr thread if it's blocked in cond_wait
   pthread_mutex_lock(&s_buffer_mutex);
   pthread_cond_broadcast(&s_buffer_cv);
   pthread_mutex_unlock(&s_buffer_mutex);
 
-  pthread_join(int_edge_thread, NULL);
-
   if (atomic_load(&is_hr_thread_running)) {
-    pthread_join(hr_thread, NULL);
+    printf("stopping hr calc thread\n");
+    atomic_store(&is_hr_thread_running, false);
+    pthread_join(hr_calc_thread, NULL);
   }
 
   printf("threads stopped\n");

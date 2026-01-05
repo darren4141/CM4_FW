@@ -117,6 +117,11 @@ StatusCode irled_deinit();
 StatusCode irled_start_reading();
 
 /**
+ * Starts the calculation thread for an irled sensor
+ */
+StatusCode irled_start_calculation_thread();
+
+/**
  * Stop the read thread for an irled sensor
  */
 StatusCode irled_stop_reading();
