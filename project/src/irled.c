@@ -35,13 +35,15 @@ static pthread_cond_t s_buffer_cv = PTHREAD_COND_INITIALIZER;
 
 static pthread_t hr_calc_thread;
 static atomic_bool is_hr_thread_running = false;
+static atomic_bool is_raw_record_thread_running = false;
+
 
 static atomic_int s_bpm = 0;
 static atomic_int s_confidence_pct = 0;
 
 static uint16_t irled_pop_multiple(Max30102Sample *out, uint16_t max_n);
 
-static bool new_hb = false;
+static atomic_bool new_hb = false;
 
 static VerbosityLevel verbosity = VERBOSITY_NONE;
 
@@ -67,6 +69,7 @@ static void *int_edge_thread_func(void *arg)
   uint32_t loops = 0;
 
   while (atomic_load(&is_thread_running)) {
+    loops++;
     gpio_get_edge_event(INT_PIN_1, &event);
 
     if (event == 1) {
@@ -84,7 +87,11 @@ static void *int_edge_thread_func(void *arg)
       }
     }
     else {
-      VERB1_PRINTF("no edge detected\n");
+      if (verbosity == VERBOSITY_LEVEL_1) {
+        if (loops % 50 == 0) {
+          printf("no edge detected\n");
+        }
+      }
     }
     nanosleep(&ts, NULL);
   }
@@ -297,7 +304,7 @@ static void *hr_calc_thread_func(void *arg)
             float bpm = 60.0f * HR_SMPL_HZ / (float)median;
 
             atomic_store(&s_bpm, (int)(bpm));
-            new_hb = true;
+            atomic_store(&new_hb, true);
             VERB1_PRINTF("-------------------------HB----------------------------\n");
           }
           else if (ibi >= ibi_min) {
@@ -312,6 +319,14 @@ static void *hr_calc_thread_func(void *arg)
   }
 
   printf("Exiting hr calculation thread\n");
+  return NULL;
+}
+
+static void *irled_raw_record_thread_func(void *arg)
+{
+  while (atomic_load(&is_raw_record_thread_running) == true) {
+  }
+  printf("Exiting irled raw record thread\n");
   return NULL;
 }
 
@@ -435,6 +450,20 @@ StatusCode irled_start_calculation_thread()
   return STATUS_CODE_OK;
 }
 
+StatusCode irled_start_raw_record_thread()
+{
+  // initialize file writing
+
+  atomic_store(&is_raw_record_thread_running, true);
+  int threadRet = pthread_create(&is_raw_record_thread_running, NULL, irled_raw_record_thread_func, NULL);
+  if (threadRet != 0) {
+    atomic_store(&is_raw_record_thread_running, false);
+    return STATUS_CODE_THREAD_FAILURE;
+  }
+
+  return STATUS_CODE_OK;
+}
+
 StatusCode irled_stop_reading(void)
 {
   if ((!atomic_load(&is_thread_running)) && (!atomic_load(&is_hr_thread_running))) {
@@ -510,12 +539,12 @@ int irled_get_confidence(void)
 
 int irled_get_hb_state(void)
 {
-  return new_hb ? 1 : 0;
+  return (atomic_load(&new_hb) == true) ? 1 : 0;
 }
 
 int irled_clear_hb_state(void)
 {
-  new_hb = false;
+  atomic_store(&new_hb, false);
   return 1;
 }
 
