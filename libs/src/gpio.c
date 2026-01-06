@@ -196,6 +196,10 @@ StatusCode gpio_get_edge_event(int pin, int *event)
     return STATUS_CODE_NOT_INITIALIZED;
   }
 
+  if (event == NULL) {
+    return STATUS_CODE_INVALID_ARGS;
+  }
+
   if ((pin < 0) || (pin > 53)) {
     return STATUS_CODE_INVALID_ARGS;
   }
@@ -253,3 +257,15 @@ StatusCode gpio_clear_edge(int pin)
 
   return STATUS_CODE_OK;
 }
+
+/**
+ * New interrupt architecture:
+ *
+ * use /dev/gpiochip0 for blocking interrupts/IRQs
+ * still use /dev/gpiomem for normal GPIO
+ *
+ * Some function to "register" pins as INT, can probably turn gpio_set_mode into a switch case
+ * If a pin is registered as interrupt, it may still allow reading through gpiomem
+ * OR we could use gpiod_line_get_value() in the gpiochip library instead
+ *
+ */
