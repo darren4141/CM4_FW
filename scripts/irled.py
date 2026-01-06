@@ -59,7 +59,6 @@ def main(args):
             print("_irled_start_calculation_thread() failed")
         else:
             print("_irled_start_calculation_thread() success")
-        
         try:
             while True:
                 if clib._irled_get_hb_state() == 1:
@@ -73,7 +72,12 @@ def main(args):
             finish()
     
     if args.usage == 1:
-        sample = clib.Max30102Sample()
+        ret = clib._irled_start_raw_record_thread()
+        if ret != 0:
+            print("_irled_start_raw_record_thread() failed")
+        else:
+            print("_irled_start_raw_record_thread() success")
+        
         try:
             while True:
                 time.sleep(0.05)

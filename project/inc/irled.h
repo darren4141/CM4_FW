@@ -121,6 +121,12 @@ StatusCode irled_start_reading();
  */
 StatusCode irled_start_calculation_thread();
 
+
+/**
+ * Starts the raw record thread for an irled sensor
+ */
+StatusCode irled_start_raw_record_thread();
+
 /**
  * Stop the read thread for an irled sensor
  */
@@ -131,12 +137,27 @@ StatusCode irled_stop_reading();
  */
 StatusCode irled_pop_sample(Max30102Sample *sample);
 
+/**
+ * Get the current BPM value atomically stored in the irled file
+ */
 int irled_get_bpm(void);
 
+/**
+ * Get the current confidence value atomically stored in the irled file
+ */
 int irled_get_confidence(void);
 
+/**
+ * Get the current hb state (bool) atomically stored in the irled file
+ */
 int irled_get_hb_state(void);
 
+/**
+ * Clear the current hb state atomically stored in the irled file, used as an ACK
+ */
 int irled_clear_hb_state(void);
 
+/**
+ * Set the verbosity level for outputs in the file
+ */
 void irled_set_verbosity_level(VerbosityLevel new_verbosity);

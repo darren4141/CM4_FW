@@ -98,6 +98,10 @@ _irled_start_calculation_thread = lib.irled_start_calculation_thread
 _irled_start_calculation_thread.argtypes = []
 _irled_start_calculation_thread.restype = c_int
 
+_irled_start_raw_record_thread = lib.irled_start_raw_record_thread
+_irled_start_raw_record_thread.argtypes = []
+_irled_start_raw_record_thread.restype = c_int
+
 _irled_stop_reading = lib.irled_stop_reading
 _irled_stop_reading.argtypes = []
 _irled_stop_reading.restype = c_int

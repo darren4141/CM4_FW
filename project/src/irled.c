@@ -325,6 +325,20 @@ static void *hr_calc_thread_func(void *arg)
 static void *irled_raw_record_thread_func(void *arg)
 {
   while (atomic_load(&is_raw_record_thread_running) == true) {
+    (void)arg;
+    Max30102Sample block[256];
+
+    uint16_t n = irled_pop_multiple(block, (uint16_t)(sizeof(block) / sizeof(block[0])));
+
+    if (n == 0) {
+      struct timespec ts = {0, 1000000};
+      nanosleep(&ts, NULL);
+      continue;
+    }
+
+    for (uint16_t i = 0; i < n; i++) {
+      printf("%u\n", block[i]);
+    }
   }
   printf("Exiting irled raw record thread\n");
   return NULL;
