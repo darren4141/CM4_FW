@@ -9,19 +9,23 @@
 static volatile uint32_t *s_gpio_regs = NULL;
 
 static int request_edge_events(struct gpiod_line *line, GpioEdge edge,
-                               const char *consumer) {
+                               const char *consumer)
+{
   switch (edge) {
   case GPIO_EDGE_RISING:
     return gpiod_line_request_rising_edge_events(line, consumer);
+
   case GPIO_EDGE_FALLING:
     return gpiod_line_request_falling_edge_events(line, consumer);
+
   case GPIO_EDGE_BOTH:
   default:
     return gpiod_line_request_both_edges_events(line, consumer);
   }
 }
 
-StatusCode gpio_get_regs_initialized() {
+StatusCode gpio_get_regs_initialized()
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
@@ -29,7 +33,8 @@ StatusCode gpio_get_regs_initialized() {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_regs_init(void) {
+StatusCode gpio_regs_init(void)
+{
   if (s_gpio_regs != NULL) {
     return STATUS_CODE_ALREADY_INITIALIZED;
   }
@@ -55,7 +60,8 @@ StatusCode gpio_regs_init(void) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_set_mode(int pin, GpioMode mode) {
+StatusCode gpio_set_mode(int pin, GpioMode mode)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
@@ -75,7 +81,8 @@ StatusCode gpio_set_mode(int pin, GpioMode mode) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_write(int pin, int value) {
+StatusCode gpio_write(int pin, int value)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
@@ -88,7 +95,8 @@ StatusCode gpio_write(int pin, int value) {
     // high
     int reg_index = GPSET0_INDEX + (pin / 32);
     s_gpio_regs[reg_index] = (1U << (pin % 32));
-  } else {
+  }
+  else {
     // low
     int reg_index = GPCLR0_INDEX + (pin / 32);
     s_gpio_regs[reg_index] = (1U << (pin % 32));
@@ -97,7 +105,8 @@ StatusCode gpio_write(int pin, int value) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_read(int pin, int *state) {
+StatusCode gpio_read(int pin, int *state)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
@@ -114,7 +123,8 @@ StatusCode gpio_read(int pin, int *state) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_toggle(int pin) {
+StatusCode gpio_toggle(int pin)
+{
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
@@ -132,7 +142,8 @@ StatusCode gpio_toggle(int pin) {
 
   if (state == 1) {
     ret = gpio_write(pin, 0);
-  } else if (state == 0) {
+  }
+  else if (state == 0) {
     ret = gpio_write(pin, 1);
   }
 
@@ -140,7 +151,8 @@ StatusCode gpio_toggle(int pin) {
 }
 
 StatusCode gpio_event_init(GpioEvent *ge, uint8_t line_num, GpioEdge edge,
-                           const char *consumer) {
+                           const char *consumer)
+{
 
   if (!ge || !consumer) {
     return STATUS_CODE_INVALID_ARGS;
@@ -185,13 +197,14 @@ StatusCode gpio_event_init(GpioEvent *ge, uint8_t line_num, GpioEdge edge,
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_event_wait(GpioEvent *ge, int timeout_ms) {
-  if (!ge || !ge->line || ge->event_fd < 0) {
+StatusCode gpio_event_wait(GpioEvent *ge, int timeout_ms)
+{
+  if (!ge || !ge->line || (ge->event_fd < 0)) {
     return STATUS_CODE_INVALID_ARGS;
   }
   struct pollfd pfd = {
-      .fd = ge->event_fd,
-      .events = POLLIN,
+    .fd = ge->event_fd,
+    .events = POLLIN,
   };
 
   int rc = poll(&pfd, 1, timeout_ms);
@@ -209,7 +222,8 @@ StatusCode gpio_event_wait(GpioEvent *ge, int timeout_ms) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_event_read(GpioEvent *ge, struct gpiod_line_event *out) {
+StatusCode gpio_event_read(GpioEvent *ge, struct gpiod_line_event *out)
+{
   if (!ge || !ge->line || !out) {
     return STATUS_CODE_INVALID_ARGS;
   }
@@ -221,7 +235,8 @@ StatusCode gpio_event_read(GpioEvent *ge, struct gpiod_line_event *out) {
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_event_close(GpioEvent *ge) {
+StatusCode gpio_event_close(GpioEvent *ge)
+{
   if (!ge) {
     return STATUS_CODE_OK;
   }
@@ -238,126 +253,126 @@ StatusCode gpio_event_close(GpioEvent *ge) {
 
 // StatusCode gpio_set_edge(int pin, GpioEdge edge)
 // {
-//   if (!s_gpio_regs) {
-//     return STATUS_CODE_NOT_INITIALIZED;
-//   }
+// if (!s_gpio_regs) {
+// return STATUS_CODE_NOT_INITIALIZED;
+// }
 
-//   if ((pin < 0) || (pin > 53)) {
-//     return STATUS_CODE_INVALID_ARGS;
-//   }
+// if ((pin < 0) || (pin > 53)) {
+// return STATUS_CODE_INVALID_ARGS;
+// }
 
-//   uint8_t bank;
+// uint8_t bank;
 
-//   if (pin >= 32) {
-//     bank = 1;
-//   }
-//   else {
-//     bank = 0;
-//   }
+// if (pin >= 32) {
+// bank = 1;
+// }
+// else {
+// bank = 0;
+// }
 
-//   uint8_t bit = pin % 32;
-//   uint32_t mask = (1U << bit);
+// uint8_t bit = pin % 32;
+// uint32_t mask = (1U << bit);
 
-//   uint8_t ren_index = GPREN0_INDEX + bank;
-//   uint8_t fen_index = GPFEN0_INDEX + bank;
-//   uint8_t eds_index = GPEDS0_INDEX + bank;
+// uint8_t ren_index = GPREN0_INDEX + bank;
+// uint8_t fen_index = GPFEN0_INDEX + bank;
+// uint8_t eds_index = GPEDS0_INDEX + bank;
 
-//   // clear pending event
-//   s_gpio_regs[eds_index] = mask;
+//// clear pending event
+// s_gpio_regs[eds_index] = mask;
 
-//   uint32_t ren = s_gpio_regs[ren_index];
-//   uint32_t fen = s_gpio_regs[fen_index];
+// uint32_t ren = s_gpio_regs[ren_index];
+// uint32_t fen = s_gpio_regs[fen_index];
 
-//   // clear existing config
+//// clear existing config
 
-//   if (edge == GPIO_EDGE_RISING) {
-//     ren |= mask;
-//     fen &= ~mask;
-//   }
-//   else if (edge == GPIO_EDGE_FALLING) {
-//     ren &= ~mask;
-//     fen |= mask;
-//   }
-//   else if (edge == GPIO_EDGE_BOTH) {
-//     ren |= mask;
-//     fen |= mask;
-//   }
-//   else {
-//     // nothing to do
-//   }
+// if (edge == GPIO_EDGE_RISING) {
+// ren |= mask;
+// fen &= ~mask;
+// }
+// else if (edge == GPIO_EDGE_FALLING) {
+// ren &= ~mask;
+// fen |= mask;
+// }
+// else if (edge == GPIO_EDGE_BOTH) {
+// ren |= mask;
+// fen |= mask;
+// }
+// else {
+//// nothing to do
+// }
 
-//   s_gpio_regs[ren_index] = ren;
-//   s_gpio_regs[fen_index] = fen;
+// s_gpio_regs[ren_index] = ren;
+// s_gpio_regs[fen_index] = fen;
 
-//   return STATUS_CODE_OK;
+// return STATUS_CODE_OK;
 // }
 
 // StatusCode gpio_get_edge_event(int pin, int *event)
 // {
-//   if (!s_gpio_regs) {
-//     return STATUS_CODE_NOT_INITIALIZED;
-//   }
+// if (!s_gpio_regs) {
+// return STATUS_CODE_NOT_INITIALIZED;
+// }
 
-//   if (event == NULL) {
-//     return STATUS_CODE_INVALID_ARGS;
-//   }
+// if (event == NULL) {
+// return STATUS_CODE_INVALID_ARGS;
+// }
 
-//   if ((pin < 0) || (pin > 53)) {
-//     return STATUS_CODE_INVALID_ARGS;
-//   }
+// if ((pin < 0) || (pin > 53)) {
+// return STATUS_CODE_INVALID_ARGS;
+// }
 
-//   uint8_t bank;
+// uint8_t bank;
 
-//   if (pin >= 32) {
-//     bank = 1;
-//   }
-//   else {
-//     bank = 0;
-//   }
+// if (pin >= 32) {
+// bank = 1;
+// }
+// else {
+// bank = 0;
+// }
 
-//   uint8_t bit = pin % 32;
-//   uint32_t mask = (1U << bit);
+// uint8_t bit = pin % 32;
+// uint32_t mask = (1U << bit);
 
-//   uint8_t eds_index = GPEDS0_INDEX + bank;
+// uint8_t eds_index = GPEDS0_INDEX + bank;
 
-//   uint32_t eds = s_gpio_regs[eds_index];
+// uint32_t eds = s_gpio_regs[eds_index];
 
-//   if (eds & mask) {
-//     *event = 1;
-//   }
-//   else {
-//     *event = 0;
-//   }
+// if (eds & mask) {
+// *event = 1;
+// }
+// else {
+// *event = 0;
+// }
 
-//   return STATUS_CODE_OK;
+// return STATUS_CODE_OK;
 // }
 
 // StatusCode gpio_clear_edge(int pin)
 // {
-//   if (!s_gpio_regs) {
-//     return STATUS_CODE_NOT_INITIALIZED;
-//   }
+// if (!s_gpio_regs) {
+// return STATUS_CODE_NOT_INITIALIZED;
+// }
 
-//   if ((pin < 0) || (pin > 53)) {
-//     return STATUS_CODE_INVALID_ARGS;
-//   }
+// if ((pin < 0) || (pin > 53)) {
+// return STATUS_CODE_INVALID_ARGS;
+// }
 
-//   uint8_t bank;
+// uint8_t bank;
 
-//   if (pin >= 32) {
-//     bank = 1;
-//   }
-//   else {
-//     bank = 0;
-//   }
+// if (pin >= 32) {
+// bank = 1;
+// }
+// else {
+// bank = 0;
+// }
 
-//   uint8_t bit = pin % 32;
-//   uint32_t mask = (1U << bit);
-//   uint8_t eds_index = GPEDS0_INDEX + bank;
+// uint8_t bit = pin % 32;
+// uint32_t mask = (1U << bit);
+// uint8_t eds_index = GPEDS0_INDEX + bank;
 
-//   s_gpio_regs[eds_index] = mask;
+// s_gpio_regs[eds_index] = mask;
 
-//   return STATUS_CODE_OK;
+// return STATUS_CODE_OK;
 // }
 
 /**
