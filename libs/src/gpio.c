@@ -8,8 +8,20 @@
 
 static volatile uint32_t *s_gpio_regs = NULL;
 
-StatusCode gpio_get_regs_initialized()
-{
+static int request_edge_events(struct gpiod_line *line, GpioEdge edge,
+                               const char *consumer) {
+  switch (edge) {
+  case GPIO_EDGE_RISING:
+    return gpiod_line_request_rising_edge_events(line, consumer);
+  case GPIO_EDGE_FALLING:
+    return gpiod_line_request_falling_edge_events(line, consumer);
+  case GPIO_EDGE_BOTH:
+  default:
+    return gpiod_line_request_both_edges_events(line, consumer);
+  }
+}
+
+StatusCode gpio_get_regs_initialized() {
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
@@ -17,8 +29,7 @@ StatusCode gpio_get_regs_initialized()
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_regs_init(void)
-{
+StatusCode gpio_regs_init(void) {
   if (s_gpio_regs != NULL) {
     return STATUS_CODE_ALREADY_INITIALIZED;
   }
@@ -44,8 +55,7 @@ StatusCode gpio_regs_init(void)
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_set_mode(int pin, GpioMode mode)
-{
+StatusCode gpio_set_mode(int pin, GpioMode mode) {
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
@@ -65,8 +75,7 @@ StatusCode gpio_set_mode(int pin, GpioMode mode)
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_write(int pin, int value)
-{
+StatusCode gpio_write(int pin, int value) {
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
@@ -79,8 +88,7 @@ StatusCode gpio_write(int pin, int value)
     // high
     int reg_index = GPSET0_INDEX + (pin / 32);
     s_gpio_regs[reg_index] = (1U << (pin % 32));
-  }
-  else {
+  } else {
     // low
     int reg_index = GPCLR0_INDEX + (pin / 32);
     s_gpio_regs[reg_index] = (1U << (pin % 32));
@@ -89,8 +97,7 @@ StatusCode gpio_write(int pin, int value)
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_read(int pin, int *state)
-{
+StatusCode gpio_read(int pin, int *state) {
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
@@ -107,8 +114,7 @@ StatusCode gpio_read(int pin, int *state)
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_toggle(int pin)
-{
+StatusCode gpio_toggle(int pin) {
   if (!s_gpio_regs) {
     return STATUS_CODE_NOT_INITIALIZED;
   }
@@ -126,137 +132,233 @@ StatusCode gpio_toggle(int pin)
 
   if (state == 1) {
     ret = gpio_write(pin, 0);
-  }
-  else if (state == 0) {
+  } else if (state == 0) {
     ret = gpio_write(pin, 1);
   }
 
   return ret;
 }
 
-StatusCode gpio_set_edge(int pin, GpioEdge edge)
-{
-  if (!s_gpio_regs) {
-    return STATUS_CODE_NOT_INITIALIZED;
-  }
+StatusCode gpio_event_init(GpioEvent *ge, uint8_t line_num, GpioEdge edge,
+                           const char *consumer) {
 
-  if ((pin < 0) || (pin > 53)) {
+  if (!ge || !consumer) {
     return STATUS_CODE_INVALID_ARGS;
   }
 
-  uint8_t bank;
+  memset(ge, 0, sizeof(*ge));
 
-  if (pin >= 32) {
-    bank = 1;
-  }
-  else {
-    bank = 0;
-  }
+  ge->line_num = line_num;
+  ge->chip = gpiod_chip_open("/dev/gpiochip0");
 
-  uint8_t bit = pin % 32;
-  uint32_t mask = (1U << bit);
-
-  uint8_t ren_index = GPREN0_INDEX + bank;
-  uint8_t fen_index = GPFEN0_INDEX + bank;
-  uint8_t eds_index = GPEDS0_INDEX + bank;
-
-  // clear pending event
-  s_gpio_regs[eds_index] = mask;
-
-  uint32_t ren = s_gpio_regs[ren_index];
-  uint32_t fen = s_gpio_regs[fen_index];
-
-  // clear existing config
-
-  if (edge == GPIO_EDGE_RISING) {
-    ren |= mask;
-    fen &= ~mask;
-  }
-  else if (edge == GPIO_EDGE_FALLING) {
-    ren &= ~mask;
-    fen |= mask;
-  }
-  else if (edge == GPIO_EDGE_BOTH) {
-    ren |= mask;
-    fen |= mask;
-  }
-  else {
-    // nothing to do
+  if (!ge->chip) {
+    printf("gpiod failed to open chip\n");
+    return STATUS_CODE_FAILED;
   }
 
-  s_gpio_regs[ren_index] = ren;
-  s_gpio_regs[fen_index] = fen;
+  ge->line = gpiod_chip_get_line(ge->line, ge->line_num);
 
-  return STATUS_CODE_OK;
-}
-
-StatusCode gpio_get_edge_event(int pin, int *event)
-{
-  if (!s_gpio_regs) {
-    return STATUS_CODE_NOT_INITIALIZED;
+  if (!ge->line) {
+    gpiod_chip_close(ge->chip);
+    ge->chip = NULL;
+    printf("gpiod failed to obtain line num\n");
+    return STATUS_CODE_FAILED;
   }
 
-  if (event == NULL) {
-    return STATUS_CODE_INVALID_ARGS;
+  StatusCode ret = request_edge_events(ge->line, edge, consumer);
+
+  if (ret < 0) {
+    gpiod_chip_close(ge->chip);
+    ge->chip = NULL;
+    ge->line = NULL;
+    printf("gpiod failed to request edge\n");
+    return STATUS_CODE_FAILED;
   }
 
-  if ((pin < 0) || (pin > 53)) {
-    return STATUS_CODE_INVALID_ARGS;
-  }
-
-  uint8_t bank;
-
-  if (pin >= 32) {
-    bank = 1;
-  }
-  else {
-    bank = 0;
-  }
-
-  uint8_t bit = pin % 32;
-  uint32_t mask = (1U << bit);
-
-  uint8_t eds_index = GPEDS0_INDEX + bank;
-
-  uint32_t eds = s_gpio_regs[eds_index];
-
-  if (eds & mask) {
-    *event = 1;
-  }
-  else {
-    *event = 0;
+  ge->event_fd = gpiod_line_event_get_fd(ge->line);
+  if (ge->event_fd < 0) {
+    gpio_event_close(ge);
+    printf("gpiod failed to get fd\n");
+    return STATUS_CODE_FAILED;
   }
 
   return STATUS_CODE_OK;
 }
 
-StatusCode gpio_clear_edge(int pin)
-{
-  if (!s_gpio_regs) {
-    return STATUS_CODE_NOT_INITIALIZED;
-  }
-
-  if ((pin < 0) || (pin > 53)) {
+StatusCode gpio_event_wait(GpioEvent *ge, int timeout_ms) {
+  if (!ge || !ge->line || ge->event_fd < 0) {
     return STATUS_CODE_INVALID_ARGS;
   }
+  struct pollfd pfd = {
+      .fd = ge->event_fd,
+      .events = POLLIN,
+  };
 
-  uint8_t bank;
-
-  if (pin >= 32) {
-    bank = 1;
+  int rc = poll(&pfd, 1, timeout_ms);
+  if (rc < 0) {
+    printf("gpiod poll failed\n");
+    return STATUS_CODE_FAILED;
   }
-  else {
-    bank = 0;
+  if (rc == 0) {
+    return STATUS_CODE_TIMEOUT;
   }
-
-  uint8_t bit = pin % 32;
-  uint32_t mask = (1U << bit);
-  uint8_t eds_index = GPEDS0_INDEX + bank;
-
-  s_gpio_regs[eds_index] = mask;
+  if (pfd.revents & POLLIN) {
+    return STATUS_CODE_OK;
+  }
 
   return STATUS_CODE_OK;
 }
+
+StatusCode gpio_event_read(GpioEvent *ge, struct gpiod_line_event *out) {
+  if (!ge || !ge->line || !out) {
+    return STATUS_CODE_INVALID_ARGS;
+  }
+  if (gpiod_line_event_read(ge->line, out) < 0) {
+    printf("gpiod line event read failed\n");
+    return STATUS_CODE_FAILED;
+  }
+
+  return STATUS_CODE_OK;
+}
+
+StatusCode gpio_event_close(GpioEvent *ge) {
+  if (!ge) {
+    return STATUS_CODE_OK;
+  }
+  if (ge->chip) {
+    gpiod_chip_close(ge->chip);
+  }
+  ge->chip = NULL;
+  ge->line = NULL;
+  ge->event_fd = -1;
+  ge->line_num = 0;
+
+  return STATUS_CODE_OK;
+}
+
+// StatusCode gpio_set_edge(int pin, GpioEdge edge)
+// {
+//   if (!s_gpio_regs) {
+//     return STATUS_CODE_NOT_INITIALIZED;
+//   }
+
+//   if ((pin < 0) || (pin > 53)) {
+//     return STATUS_CODE_INVALID_ARGS;
+//   }
+
+//   uint8_t bank;
+
+//   if (pin >= 32) {
+//     bank = 1;
+//   }
+//   else {
+//     bank = 0;
+//   }
+
+//   uint8_t bit = pin % 32;
+//   uint32_t mask = (1U << bit);
+
+//   uint8_t ren_index = GPREN0_INDEX + bank;
+//   uint8_t fen_index = GPFEN0_INDEX + bank;
+//   uint8_t eds_index = GPEDS0_INDEX + bank;
+
+//   // clear pending event
+//   s_gpio_regs[eds_index] = mask;
+
+//   uint32_t ren = s_gpio_regs[ren_index];
+//   uint32_t fen = s_gpio_regs[fen_index];
+
+//   // clear existing config
+
+//   if (edge == GPIO_EDGE_RISING) {
+//     ren |= mask;
+//     fen &= ~mask;
+//   }
+//   else if (edge == GPIO_EDGE_FALLING) {
+//     ren &= ~mask;
+//     fen |= mask;
+//   }
+//   else if (edge == GPIO_EDGE_BOTH) {
+//     ren |= mask;
+//     fen |= mask;
+//   }
+//   else {
+//     // nothing to do
+//   }
+
+//   s_gpio_regs[ren_index] = ren;
+//   s_gpio_regs[fen_index] = fen;
+
+//   return STATUS_CODE_OK;
+// }
+
+// StatusCode gpio_get_edge_event(int pin, int *event)
+// {
+//   if (!s_gpio_regs) {
+//     return STATUS_CODE_NOT_INITIALIZED;
+//   }
+
+//   if (event == NULL) {
+//     return STATUS_CODE_INVALID_ARGS;
+//   }
+
+//   if ((pin < 0) || (pin > 53)) {
+//     return STATUS_CODE_INVALID_ARGS;
+//   }
+
+//   uint8_t bank;
+
+//   if (pin >= 32) {
+//     bank = 1;
+//   }
+//   else {
+//     bank = 0;
+//   }
+
+//   uint8_t bit = pin % 32;
+//   uint32_t mask = (1U << bit);
+
+//   uint8_t eds_index = GPEDS0_INDEX + bank;
+
+//   uint32_t eds = s_gpio_regs[eds_index];
+
+//   if (eds & mask) {
+//     *event = 1;
+//   }
+//   else {
+//     *event = 0;
+//   }
+
+//   return STATUS_CODE_OK;
+// }
+
+// StatusCode gpio_clear_edge(int pin)
+// {
+//   if (!s_gpio_regs) {
+//     return STATUS_CODE_NOT_INITIALIZED;
+//   }
+
+//   if ((pin < 0) || (pin > 53)) {
+//     return STATUS_CODE_INVALID_ARGS;
+//   }
+
+//   uint8_t bank;
+
+//   if (pin >= 32) {
+//     bank = 1;
+//   }
+//   else {
+//     bank = 0;
+//   }
+
+//   uint8_t bit = pin % 32;
+//   uint32_t mask = (1U << bit);
+//   uint8_t eds_index = GPEDS0_INDEX + bank;
+
+//   s_gpio_regs[eds_index] = mask;
+
+//   return STATUS_CODE_OK;
+// }
 
 /**
  * New interrupt architecture:
@@ -264,8 +366,9 @@ StatusCode gpio_clear_edge(int pin)
  * use /dev/gpiochip0 for blocking interrupts/IRQs
  * still use /dev/gpiomem for normal GPIO
  *
- * Some function to "register" pins as INT, can probably turn gpio_set_mode into a switch case
- * If a pin is registered as interrupt, it may still allow reading through gpiomem
- * OR we could use gpiod_line_get_value() in the gpiochip library instead
+ * Some function to "register" pins as INT, can probably turn gpio_set_mode into
+ * a switch case If a pin is registered as interrupt, it may still allow reading
+ * through gpiomem OR we could use gpiod_line_get_value() in the gpiochip
+ * library instead
  *
  */

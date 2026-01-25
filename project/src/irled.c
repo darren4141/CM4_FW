@@ -12,15 +12,15 @@
 static StatusCode irled_read_reg(uint8_t reg, uint8_t *val);
 
 #define IRLED_WRITE_REG(reg, val)                                              \
-        i2c_write(I2C_BUS_2, MX_I2C_ADDR, (uint8_t[]) {reg, val}, 2);
+  i2c_write(I2C_BUS_2, MX_I2C_ADDR, (uint8_t[]){reg, val}, 2);
 
 #define IRLED_READ_REG(reg, val) irled_read_reg(reg, val);
 
 static pthread_t int_edge_thread;
 static atomic_bool is_thread_running = false;
 static struct timespec ts = {
-  .tv_sec = IRLED_THREAD_PERIOD_NS / NSEC_PER_SEC,
-  .tv_nsec = IRLED_THREAD_PERIOD_NS % NSEC_PER_SEC,
+    .tv_sec = IRLED_THREAD_PERIOD_NS / NSEC_PER_SEC,
+    .tv_nsec = IRLED_THREAD_PERIOD_NS % NSEC_PER_SEC,
 };
 
 static void *int_edge_thread_func(void *arg);
@@ -31,12 +31,13 @@ static volatile uint16_t s_head = 0;
 static volatile uint16_t s_tail = 0;
 static pthread_mutex_t s_buffer_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+static GpioEvent gev_int1;
+
 static pthread_cond_t s_buffer_cv = PTHREAD_COND_INITIALIZER;
 
 static pthread_t hr_calc_thread;
 static atomic_bool is_hr_thread_running = false;
 static atomic_bool is_raw_record_thread_running = false;
-
 
 static atomic_int s_bpm = 0;
 static atomic_int s_confidence_pct = 0;
@@ -47,11 +48,10 @@ static atomic_bool new_hb = false;
 
 static VerbosityLevel verbosity = VERBOSITY_NONE;
 
-static StatusCode irled_read_reg(uint8_t reg, uint8_t *val)
-{
+static StatusCode irled_read_reg(uint8_t reg, uint8_t *val) {
   uint8_t read_buf;
   StatusCode ret =
-    i2c_write_then_read(I2C_BUS_2, MX_I2C_ADDR, &reg, 1, &read_buf, 1);
+      i2c_write_then_read(I2C_BUS_2, MX_I2C_ADDR, &reg, 1, &read_buf, 1);
   if (ret != STATUS_CODE_OK) {
     printf("Could not read from register: %d\n", reg);
     return ret;
@@ -61,46 +61,49 @@ static StatusCode irled_read_reg(uint8_t reg, uint8_t *val)
   return STATUS_CODE_OK;
 }
 
-static void *int_edge_thread_func(void *arg)
-{
+static void *int_edge_thread_func(void *arg) {
   (void)arg;
-  int event;
-  // int state;
-  uint32_t loops = 0;
 
   while (atomic_load(&is_thread_running)) {
-    loops++;
-    gpio_get_edge_event(INT_PIN_1, &event);
 
-    if (event == 1) {
-      VERB1_PRINTF("interrupt triggered\n");
+    StatusCode wait_for_edge = gpio_event_wait(&gev_int1, 200);
 
-      gpio_clear_edge(INT_PIN_1);
+    if (wait_for_edge == STATUS_CODE_TIMEOUT) { // We timed out, so re-loop
+      continue;
+    }
+
+    if (wait_for_edge < 0) {
+      VERB1_PRINTF("gpio_event_wait error: %d\n", wait_for_edge);
+      break;
+    }
+
+    // ACK
+    struct gpiod_line_event ev;
+    int rc = gpio_event_read(&gev_int1, &ev);
+    if (rc < 0) {
+      VERB1_PRINTF("gpio_event_read error: %d\n", rc);
+      continue;
+    }
+
+    VERB1_PRINTF("interrupt triggered\n");
+
+    if (ev.event_type == GPIOD_LINE_EVENT_FALLING_EDGE) {
       uint8_t status = 0;
       IRLED_READ_REG(MX_IS1, &status);
 
       if (status & IS1_A_FULL) {
         StatusCode ret = max30102_read_fifo_to_buffer();
-      }
-      else {
+      } else {
         printf("Warning: interrupt fired with invalid status: %d\n", status);
       }
     }
-    else {
-      if (verbosity == VERBOSITY_LEVEL_1) {
-        if (loops % 50 == 0) {
-          printf("no edge detected\n");
-        }
-      }
-    }
-    nanosleep(&ts, NULL);
   }
+
   printf("exiting int thread\n");
   return NULL;
 }
 
-static StatusCode max30102_read_fifo_to_buffer(void)
-{
+static StatusCode max30102_read_fifo_to_buffer(void) {
   StatusCode ret;
 
   uint8_t wr = 0, rd = 0;
@@ -128,17 +131,17 @@ static StatusCode max30102_read_fifo_to_buffer(void)
     for (uint8_t i = 0; i < to_read; i++) {
       uint8_t buf[6];
       ret = i2c_write_then_read(I2C_BUS_2, MX_I2C_ADDR,
-                                (uint8_t[]) { MX_FIFO_DATA }, 1, buf, 6);
+                                (uint8_t[]){MX_FIFO_DATA}, 1, buf, 6);
       if (ret != STATUS_CODE_OK) {
         pthread_mutex_unlock(&s_buffer_mutex);
         return STATUS_CODE_FAILED;
       }
 
       Max30102Sample sample;
-      sample.ir = ((uint32_t)(buf[0] & 0x03) << 16)
-                  | ((uint32_t)buf[1] << 8) | (uint32_t)buf[2];
-      sample.red = ((uint32_t)(buf[3] & 0x03) << 16)
-                   | ((uint32_t)buf[4] << 8) | (uint32_t)buf[5];
+      sample.ir = ((uint32_t)(buf[0] & 0x03) << 16) | ((uint32_t)buf[1] << 8) |
+                  (uint32_t)buf[2];
+      sample.red = ((uint32_t)(buf[3] & 0x03) << 16) | ((uint32_t)buf[4] << 8) |
+                   (uint32_t)buf[5];
 
       s_buffer[s_head] = sample;
       s_head = (s_head + 1) % MAX30102_BUFFER_SIZE;
@@ -157,22 +160,20 @@ static StatusCode max30102_read_fifo_to_buffer(void)
   return STATUS_CODE_OK;
 }
 
-static uint16_t irled_buffer_count_unsafe(void)
-{
+static uint16_t irled_buffer_count_unsafe(void) {
   if (s_head >= s_tail) {
     return (uint16_t)(s_head - s_tail);
   }
   return (uint16_t)(MAX30102_BUFFER_SIZE - (s_tail - s_head));
 }
 
-static void *hr_calc_thread_func(void *arg)
-{
+static void *hr_calc_thread_func(void *arg) {
 
   VERB1_PRINTF("HR calc thread starting...\n");
   (void)arg;
   Max30102Sample block[256];
 
-  #define IBI_BUF 8
+#define IBI_BUF 8
   uint32_t ibi_samples[IBI_BUF] = {0};
   uint8_t ibi_head = 0;
   uint8_t ibi_count = 0;
@@ -218,7 +219,8 @@ static void *hr_calc_thread_func(void *arg)
   // uint32_t count = 0;
 
   while (atomic_load(&is_hr_thread_running)) {
-    uint16_t n = irled_pop_multiple(block, (uint16_t)(sizeof(block) / sizeof(block[0])));
+    uint16_t n =
+        irled_pop_multiple(block, (uint16_t)(sizeof(block) / sizeof(block[0])));
     // count += n;
 
     // printf("nc: %u\n", count);
@@ -269,8 +271,7 @@ static void *hr_calc_thread_func(void *arg)
         if (last_peak_idx == 0) {
           VERB2_PRINTF("First peak detected, index: %u\n", sample_idx);
           last_peak_idx = sample_idx;
-        }
-        else {
+        } else {
           uint32_t ibi = sample_idx - last_peak_idx;
           VERB2_PRINTF("%u", ibi);
 
@@ -305,9 +306,9 @@ static void *hr_calc_thread_func(void *arg)
 
             atomic_store(&s_bpm, (int)(bpm));
             atomic_store(&new_hb, true);
-            VERB1_PRINTF("-------------------------HB----------------------------\n");
-          }
-          else if (ibi >= ibi_min) {
+            VERB1_PRINTF(
+                "-------------------------HB----------------------------\n");
+          } else if (ibi >= ibi_min) {
             last_peak_idx = sample_idx;
           }
         }
@@ -322,13 +323,13 @@ static void *hr_calc_thread_func(void *arg)
   return NULL;
 }
 
-static void *irled_raw_record_thread_func(void *arg)
-{
+static void *irled_raw_record_thread_func(void *arg) {
   while (atomic_load(&is_raw_record_thread_running) == true) {
     (void)arg;
     Max30102Sample block[256];
 
-    uint16_t n = irled_pop_multiple(block, (uint16_t)(sizeof(block) / sizeof(block[0])));
+    uint16_t n =
+        irled_pop_multiple(block, (uint16_t)(sizeof(block) / sizeof(block[0])));
 
     if (n == 0) {
       struct timespec ts = {0, 1000000};
@@ -344,8 +345,7 @@ static void *irled_raw_record_thread_func(void *arg)
   return NULL;
 }
 
-StatusCode irled_init()
-{
+StatusCode irled_init() {
   StatusCode ret = STATUS_CODE_OK;
 
   ret = i2c_get_initialized(I2C_BUS_2);
@@ -372,8 +372,7 @@ StatusCode irled_init()
   if (ret != STATUS_CODE_OK) {
     printf("IRLED_READ_REG() failed with exit code: %u\n", ret);
     return STATUS_CODE_FAILED;
-  }
-  else {
+  } else {
     printf("irled init, part id: %02X, expected 0x15\n", partId);
   }
 
@@ -382,30 +381,28 @@ StatusCode irled_init()
   if (ret != STATUS_CODE_OK) {
     printf("IRLED_READ_REG() failed with exit code: %u\n", ret);
     return STATUS_CODE_FAILED;
-  }
-  else {
+  } else {
     printf("Cleared interrupt status 1 with value: %d\n", int_status);
   }
   ret = IRLED_READ_REG(MX_IS2, &int_status);
   if (ret != STATUS_CODE_OK) {
     printf("IRLED_READ_REG() failed with exit code: %u\n", ret);
     return STATUS_CODE_FAILED;
-  }
-  else {
+  } else {
     printf("Cleared interrupt status 2 with value: %d\n", int_status);
   }
 
-  IRLED_WRITE_REG(MX_FIFO_CONFIG, FIFO_CONFIG_SAMPLE_AVERAGE_4
-                  | FIFO_CONFIG_ROLLOVER_EN
-                  | FIFO_CONFIG_A_FULL_4_SAMPLES);
+  IRLED_WRITE_REG(MX_FIFO_CONFIG, FIFO_CONFIG_SAMPLE_AVERAGE_4 |
+                                      FIFO_CONFIG_ROLLOVER_EN |
+                                      FIFO_CONFIG_A_FULL_4_SAMPLES);
 
   IRLED_WRITE_REG(MX_FIFO_WR_PTR, 0x00);
   IRLED_WRITE_REG(MX_OVF_COUNTER, 0x00);
   IRLED_WRITE_REG(MX_FIFO_RD_PTR, 0x00);
 
-  IRLED_WRITE_REG(MX_SPO2_CONFIG, SPO2_CONFIG_ADC_RGE_4096
-                  | SPO2_CONFIG_SAMPLE_RT_400
-                  | SPO2_CONFIG_LED_PW_18);
+  IRLED_WRITE_REG(MX_SPO2_CONFIG, SPO2_CONFIG_ADC_RGE_4096 |
+                                      SPO2_CONFIG_SAMPLE_RT_400 |
+                                      SPO2_CONFIG_LED_PW_18);
 
   IRLED_WRITE_REG(MX_LED1_PULSE_AMP, 0x3C);
   IRLED_WRITE_REG(MX_LED2_PULSE_AMP, 0x3C);
@@ -413,14 +410,17 @@ StatusCode irled_init()
   IRLED_WRITE_REG(MX_IE1, IE1_A_FULL_EN);
   IRLED_WRITE_REG(MX_MODE_CONFIG, MODE_CONFIG_SPO2_MODE);
 
-  TRY(gpio_set_mode(INT_PIN_1, GPIO_MODE_INPUT));
-  TRY(gpio_set_edge(INT_PIN_1, GPIO_EDGE_FALLING));
+  ret =
+      gpio_event_init(gev_int1, INT_GPIO_PIN_1, GPIO_EDGE_FALLING, "IRLED_INT");
+  if (ret != STATUS_CODE_OK) {
+    printf("gpio_event_init() failed\n");
+    return ret;
+  }
 
   return STATUS_CODE_OK;
 }
 
-StatusCode irled_deinit()
-{
+StatusCode irled_deinit() {
   if (atomic_load(&is_thread_running)) {
     atomic_store(&is_thread_running, false);
     pthread_join(int_edge_thread, NULL);
@@ -439,23 +439,22 @@ StatusCode irled_deinit()
   return STATUS_CODE_OK;
 }
 
-StatusCode irled_start_reading()
-{
+StatusCode irled_start_reading() {
   atomic_store(&is_thread_running, true);
-  int threadRet = pthread_create(&int_edge_thread, NULL, int_edge_thread_func, NULL);
+  int threadRet =
+      pthread_create(&int_edge_thread, NULL, int_edge_thread_func, NULL);
   if (threadRet != 0) {
     atomic_store(&is_thread_running, false);
     return STATUS_CODE_THREAD_FAILURE;
   }
 
-
   return STATUS_CODE_OK;
 }
 
-StatusCode irled_start_calculation_thread()
-{
+StatusCode irled_start_calculation_thread() {
   atomic_store(&is_hr_thread_running, true);
-  int threadRet = pthread_create(&hr_calc_thread, NULL, hr_calc_thread_func, NULL);
+  int threadRet =
+      pthread_create(&hr_calc_thread, NULL, hr_calc_thread_func, NULL);
   if (threadRet != 0) {
     atomic_store(&is_hr_thread_running, false);
     return STATUS_CODE_THREAD_FAILURE;
@@ -464,12 +463,12 @@ StatusCode irled_start_calculation_thread()
   return STATUS_CODE_OK;
 }
 
-StatusCode irled_start_raw_record_thread()
-{
+StatusCode irled_start_raw_record_thread() {
   // initialize file writing
 
   atomic_store(&is_raw_record_thread_running, true);
-  int threadRet = pthread_create(&is_raw_record_thread_running, NULL, irled_raw_record_thread_func, NULL);
+  int threadRet = pthread_create(&is_raw_record_thread_running, NULL,
+                                 irled_raw_record_thread_func, NULL);
   if (threadRet != 0) {
     atomic_store(&is_raw_record_thread_running, false);
     return STATUS_CODE_THREAD_FAILURE;
@@ -478,9 +477,9 @@ StatusCode irled_start_raw_record_thread()
   return STATUS_CODE_OK;
 }
 
-StatusCode irled_stop_reading(void)
-{
-  if ((!atomic_load(&is_thread_running)) && (!atomic_load(&is_hr_thread_running))) {
+StatusCode irled_stop_reading(void) {
+  if ((!atomic_load(&is_thread_running)) &&
+      (!atomic_load(&is_hr_thread_running))) {
     return STATUS_CODE_OK;
   }
 
@@ -488,6 +487,7 @@ StatusCode irled_stop_reading(void)
     printf("stopping int thread\n");
     atomic_store(&is_thread_running, false);
     pthread_join(int_edge_thread, NULL);
+    gpio_event_close(&g_int1_ev);
   }
 
   // Wake up hr thread if it's blocked in cond_wait
@@ -505,15 +505,13 @@ StatusCode irled_stop_reading(void)
   return STATUS_CODE_OK;
 }
 
-StatusCode irled_pop_sample(Max30102Sample *sample)
-{
+StatusCode irled_pop_sample(Max30102Sample *sample) {
   pthread_mutex_lock(&s_buffer_mutex);
 
   if (s_head != s_tail) {
     *sample = s_buffer[s_tail];
     s_tail = (s_tail + 1) % MAX30102_BUFFER_SIZE;
-  }
-  else {
+  } else {
     pthread_mutex_unlock(&s_buffer_mutex);
     return STATUS_CODE_FAILED;
   }
@@ -522,8 +520,7 @@ StatusCode irled_pop_sample(Max30102Sample *sample)
   return STATUS_CODE_OK;
 }
 
-static uint16_t irled_pop_multiple(Max30102Sample *out, uint16_t max_n)
-{
+static uint16_t irled_pop_multiple(Max30102Sample *out, uint16_t max_n) {
   pthread_mutex_lock(&s_buffer_mutex);
 
   while (atomic_load(&is_thread_running) && irled_buffer_count_unsafe() == 0) {
@@ -541,29 +538,18 @@ static uint16_t irled_pop_multiple(Max30102Sample *out, uint16_t max_n)
   return n;
 }
 
-int irled_get_bpm(void)
-{
-  return atomic_load(&s_bpm);
-}
+int irled_get_bpm(void) { return atomic_load(&s_bpm); }
 
-int irled_get_confidence(void)
-{
-  return atomic_load(&s_confidence_pct);
-}
+int irled_get_confidence(void) { return atomic_load(&s_confidence_pct); }
 
-int irled_get_hb_state(void)
-{
-  return (atomic_load(&new_hb) == true) ? 1 : 0;
-}
+int irled_get_hb_state(void) { return (atomic_load(&new_hb) == true) ? 1 : 0; }
 
-int irled_clear_hb_state(void)
-{
+int irled_clear_hb_state(void) {
   atomic_store(&new_hb, false);
   return 1;
 }
 
-void irled_set_verbosity_level(VerbosityLevel new_verbosity)
-{
+void irled_set_verbosity_level(VerbosityLevel new_verbosity) {
   verbosity = new_verbosity;
   printf("Set verbosity level to %u\n", verbosity);
 }
