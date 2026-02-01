@@ -1,8 +1,16 @@
 #pragma once
-
+/* Standard library Headers */
+#include <math.h>
+#include <pthread.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <time.h>
 
+/* Inter-component Headers */
+#include "cm4_gpio.h"
+#include "cm4_i2c.h"
 #include "global_enums.h"
 
 #define MX_I2C_ADDR                   0x57

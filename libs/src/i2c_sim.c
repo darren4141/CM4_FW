@@ -1,9 +1,5 @@
 #include "cm4_i2c.h"
 
-#include <stdio.h>
-
-#include "cm4_gpio.h"
-
 static uint32_t *bsc1 = NULL;
 static uint32_t *bsc2 = NULL;
 

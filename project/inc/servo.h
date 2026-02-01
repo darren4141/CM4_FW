@@ -1,7 +1,11 @@
 #pragma once
-
+/* Standard library Headers */
+#include <pthread.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <time.h>
 
+/* Inter-component Headers */
 #include "global_enums.h"
 #include "pwm_controller.h"
 
@@ -47,7 +51,7 @@ typedef struct {
 } Servo;
 
 /**
- * Initialize serv module
+ * Initialize servo module
  */
 StatusCode servo_init();
 

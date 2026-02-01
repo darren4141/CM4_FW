@@ -1,5 +1,9 @@
 #pragma once
 
+/* Standard library Headers */
+
+/* Inter-component Headers */
+
 #define KHZ(x)            ((x) * 1000U)
 #define MHZ(x)            ((x) * 1000000U)
 #define GHZ(x)            ((x) * 1000000000U)

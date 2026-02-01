@@ -1,14 +1,5 @@
 #include "irled.h"
 
-#include <math.h>
-#include <pthread.h>
-#include <stdatomic.h>
-#include <stdio.h>
-#include <time.h>
-
-#include "cm4_gpio.h"
-#include "cm4_i2c.h"
-
 static StatusCode irled_read_reg(uint8_t reg, uint8_t *val);
 
 #define IRLED_WRITE_REG(reg, val)                                              \

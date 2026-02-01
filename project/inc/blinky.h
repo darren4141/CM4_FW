@@ -1,6 +1,12 @@
 #pragma once
 
+/* Standard library Headers */
+#include <stdint.h>
+#include <stdio.h>
+
+/* Inter-component Headers */
 #include "global_enums.h"
+#include "pwm_controller.h"
 
 #define LED_CHANNEL_TO_PCA_CHANNEL(x)                                          \
         ((x) == LED_CHANNEL_4 ? PCA_LED4_ON_L                                      \

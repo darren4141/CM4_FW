@@ -1,10 +1,5 @@
 #include "blinky.h"
 
-#include <stdint.h>
-#include <stdio.h>
-
-#include "pwm_controller.h"
-
 static LedState led_state[2];
 
 static VerbosityLevel verbosity = VERBOSITY_NONE;

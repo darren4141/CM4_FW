@@ -1,11 +1,5 @@
 #include "cm4_gpio.h"
 
-#include <fcntl.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <sys/mman.h>
-#include <unistd.h>
-
 static volatile uint32_t *s_gpio_regs = NULL;
 
 static int request_edge_events(struct gpiod_line *line, GpioEdge edge,

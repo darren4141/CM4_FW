@@ -1,11 +1,5 @@
 #include "pwm_controller.h"
 
-#include <stdbool.h>
-#include <stdio.h>
-#include <unistd.h>
-
-#include "cm4_i2c.h"
-
 #define PCA_WRITE_REG(reg, val)                                                \
         i2c_write(I2C_BUS_2, PCA_I2C_ADDR, (uint8_t[]) {reg, val}, 2);
 

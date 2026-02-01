@@ -1,7 +1,12 @@
 #pragma once
-
+/* Standard library Headers */
+#include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <unistd.h>
 
+/* Inter-component Headers */
+#include "cm4_i2c.h"
 #include "global_enums.h"
 
 #define PCA_REG_SIZE_BITS 8

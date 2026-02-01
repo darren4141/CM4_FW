@@ -1,7 +1,22 @@
 #pragma once
 
+/* Standard library Headers */
+#include <errno.h>
+#include <fcntl.h>
+#include <pthread.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
+/* Hardware library Headers */
+#include <linux/i2c-dev.h>
+#include <linux/i2c.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+
+/* Inter-component Headers */
+#include "cm4_gpio.h"
 #include "global_enums.h"
 
 #define BSC_REG_SIZE_BITS 32

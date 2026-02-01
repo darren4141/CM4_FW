@@ -1,5 +1,10 @@
 #pragma once
+/* Standard library Headers */
+#include <stdint.h>
+#include <stdio.h>
 
+/* Inter-component Headers */
+#include "cm4_i2c.h"
 #include "global_enums.h"
 
 #define INA_I2C_ADDRESS   0x41

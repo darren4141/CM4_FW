@@ -1,10 +1,5 @@
 #include "currentsense.h"
 
-#include <stdint.h>
-#include <stdio.h>
-
-#include "cm4_i2c.h"
-
 static StatusCode ina_read_reg(uint8_t reg, int16_t *val);
 
 #define INA_WRITE_REG(reg, val)                                                \

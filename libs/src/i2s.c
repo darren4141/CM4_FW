@@ -1,16 +1,5 @@
 #include "cm4_i2s.h"
 
-#include <alsa/asoundlib.h>
-#include <pthread.h>
-#include <stdatomic.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
-
 static const unsigned kRate = 48000;   // sample rate
 static const unsigned pb_kCh = 1;
 static const unsigned rec_kCh = 2;

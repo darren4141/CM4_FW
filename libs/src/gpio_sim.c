@@ -1,5 +1,4 @@
 #include "cm4_gpio.h"
-#include <stdio.h>
 
 static int s_gpio_regs = 0;
 static int pin_modes[40];

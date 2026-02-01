@@ -1,8 +1,22 @@
 #pragma once
 
+/* Standard library Headers */
+#include <pthread.h>
+#include <stdatomic.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
 
+/* Hardware library Headers */
+#include <alsa/asoundlib.h>
+
+/* Inter-component Headers */
 #include "global_enums.h"
 
 /**

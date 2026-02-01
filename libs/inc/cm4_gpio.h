@@ -1,8 +1,17 @@
 #pragma once
-
-#include <gpiod.h>
+/* Standard library Headers */
 #include <stdint.h>
+#include <stdio.h>
 
+/* Hardware library Headers*/
+#include <fcntl.h>
+#include <gpiod.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+/* Inter-component Headers */
 #include "global_enums.h"
 
 #define GPIO_BLOCK_SIZE 4096

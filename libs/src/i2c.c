@@ -1,18 +1,5 @@
 #include "cm4_i2c.h"
 
-#include <errno.h>
-#include <fcntl.h>
-#include <linux/i2c-dev.h>
-#include <linux/i2c.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <sys/mman.h>
-#include <unistd.h>
-
-#include "cm4_gpio.h"
-
 static int i2c_fd_1 = -1;
 static int i2c_fd_2 = -1;
 
