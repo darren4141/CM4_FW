@@ -2,13 +2,13 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/i2c-dev.h>
+#include <linux/i2c.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
-#include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
-#include  <pthread.h>
 #include <unistd.h>
 
 #include "cm4_gpio.h"
@@ -72,7 +72,8 @@ StatusCode i2c_init(I2cBus i2c_bus)
   int fd = open(dev, O_RDWR);
   if (fd < 0) {
     printf("Failed to access memory\n");
-    fprintf(stderr, "open(%s) failed: %s (errno=%d)\n", dev, strerror(errno), errno);
+    fprintf(stderr, "open(%s) failed: %s (errno=%d)\n", dev, strerror(errno),
+            errno);
     return STATUS_CODE_MEM_ACCESS_FAILURE;
   }
 
@@ -186,8 +187,8 @@ StatusCode i2c_write(I2cBus i2c_bus, uint8_t addr, const uint8_t *buf,
 
   ssize_t w = write(*fdp, buf, len);
   if (w < 0) {
-    fprintf(stderr, "I2C write to 0x%02X failed: %s (errno=%d)\n",
-            addr, strerror(errno), errno);
+    fprintf(stderr, "I2C write to 0x%02X failed: %s (errno=%d)\n", addr,
+            strerror(errno), errno);
     return STATUS_CODE_FAILED;
   }
   if ((uint32_t)w != len) {

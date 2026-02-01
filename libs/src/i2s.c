@@ -39,7 +39,6 @@ typedef struct {
   size_t bytes_per_frame;
 } PlaybackThreadInfo_s;
 
-
 static pthread_t record_thread;
 static void record_thread_deactivate();
 static void *record_thread_func(void *arg);
@@ -52,7 +51,6 @@ typedef struct {
   snd_pcm_t *capture;
 } RecordThreadInfo_s;
 
-
 static PlaybackThreadInfo_s playback_thread_info;
 static RecordThreadInfo_s record_thread_info;
 
@@ -61,8 +59,9 @@ static _Atomic uint32_t g_rb_w = 0;   // write index
 static _Atomic uint32_t g_rb_r = 0;   // read index
 
 static int i2s_recover(snd_pcm_t *h, int ret, const char *tag);
-static int i2s_open_config(snd_pcm_t **h, const char *dev, snd_pcm_stream_t stream,
-                           unsigned rate, unsigned ch, snd_pcm_format_t fmt,
+static int i2s_open_config(snd_pcm_t **h, const char *dev,
+                           snd_pcm_stream_t stream, unsigned rate, unsigned ch,
+                           snd_pcm_format_t fmt,
                            snd_pcm_uframes_t period_frames);
 static inline uint32_t rb_used(uint32_t r, uint32_t w);
 static inline uint32_t rb_free(uint32_t r, uint32_t w);
@@ -84,7 +83,8 @@ static void rb_push(const uint8_t *data, uint32_t len)
   uint32_t w = atomic_load_explicit(&g_rb_w, memory_order_relaxed);
 
   if (len > rb_free(r, w)) {
-    // Drop newest chunk if buffer would overflow (or drop oldest by advancing r)
+    // Drop newest chunk if buffer would overflow (or drop oldest by advancing
+    // r)
     return;
   }
 
@@ -157,8 +157,9 @@ static int i2s_recover(snd_pcm_t *h, int ret, const char *tag)
   return ret;
 }
 
-static int i2s_open_config(snd_pcm_t **h, const char *dev, snd_pcm_stream_t stream,
-                           unsigned rate, unsigned ch, snd_pcm_format_t fmt,
+static int i2s_open_config(snd_pcm_t **h, const char *dev,
+                           snd_pcm_stream_t stream, unsigned rate, unsigned ch,
+                           snd_pcm_format_t fmt,
                            snd_pcm_uframes_t period_frames)
 {
   int ret = snd_pcm_open(h, dev, stream, 0);
@@ -171,7 +172,8 @@ static int i2s_open_config(snd_pcm_t **h, const char *dev, snd_pcm_stream_t stre
   snd_pcm_hw_params_alloca(&hw);
   snd_pcm_hw_params_any(*h, hw);
 
-  if ((ret = snd_pcm_hw_params_set_access(*h, hw, SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
+  if ((ret = snd_pcm_hw_params_set_access(*h, hw,
+                                          SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
     return ret;
   }
 
@@ -201,7 +203,8 @@ static int i2s_open_config(snd_pcm_t **h, const char *dev, snd_pcm_stream_t stre
     return ret;
   }
 
-  printf("%s configured: rate=%u ch=%u fmt=%s period=%lu\n", dev, r, ch, snd_pcm_format_name(fmt), (unsigned long)p);
+  printf("%s configured: rate=%u ch=%u fmt=%s period=%lu\n", dev, r, ch,
+         snd_pcm_format_name(fmt), (unsigned long)p);
   return 0;
 }
 
@@ -246,11 +249,11 @@ static void *record_thread_func(void *arg)
       break;
     }
 
-
     while (atomic_load(&is_record_active)) {
       atomic_store(&is_record_idle, false);
 
-      snd_pcm_sframes_t n = snd_pcm_readi(cap, buf, (snd_pcm_uframes_t)kPeriodFrames);
+      snd_pcm_sframes_t n =
+        snd_pcm_readi(cap, buf, (snd_pcm_uframes_t)kPeriodFrames);
 
       if (n < 0) {
         int ret = i2s_recover(cap, (int)n, "capture");
@@ -271,7 +274,8 @@ static void *record_thread_func(void *arg)
         out[i] = clamp16(s);
       }
 
-      rb_push((const uint8_t *)out, (uint32_t)(kPeriodFrames * sizeof(int16_t)));
+      rb_push((const uint8_t *)out,
+              (uint32_t)(kPeriodFrames * sizeof(int16_t)));
       memset(buf, 0, buf_bytes);
     }
     atomic_store(&is_record_idle, true);
@@ -328,7 +332,8 @@ static void *playback_thread_func(void *arg)
       bpf = playback_thread_info.bytes_per_frame;
       pthread_mutex_unlock(&s_playback_mutex);
 
-      if (!pb || !data || !buf || (bpf == 0) || (buf_bytes == 0) || (data_len == 0)) {
+      if (!pb || !data || !buf || (bpf == 0) || (buf_bytes == 0)
+          || (data_len == 0)) {
         playback_thread_deactivate();
         atomic_store(&is_playback_idle, true);
         atomic_store(&is_playback_active, false);
@@ -359,7 +364,8 @@ static void *playback_thread_func(void *arg)
       snd_pcm_sframes_t written = 0;
 
       while (written < (snd_pcm_sframes_t)frames) {
-        snd_pcm_sframes_t n = snd_pcm_writei(pb, buf + written * bpf, frames - written);
+        snd_pcm_sframes_t n =
+          snd_pcm_writei(pb, buf + written * bpf, frames - written);
         if (n < 0) {
           int ret = i2s_recover(pb, (int)n, "playback");
           if (ret < 0) {
@@ -384,7 +390,8 @@ static void *playback_thread_func(void *arg)
 StatusCode i2s_init()
 {
   atomic_store(&is_playback_thread_running, true);
-  int threadRet = pthread_create(&playback_thread, NULL, playback_thread_func, NULL);
+  int threadRet =
+    pthread_create(&playback_thread, NULL, playback_thread_func, NULL);
   if (threadRet != 0) {
     atomic_store(&is_playback_thread_running, false);
     return STATUS_CODE_THREAD_FAILURE;
@@ -460,7 +467,9 @@ StatusCode i2s_start_recording()
   pthread_mutex_lock(&s_record_mutex);
 
   record_thread_info.capture = NULL;
-  int ret = i2s_open_config(&record_thread_info.capture, MIC_DEV, SND_PCM_STREAM_CAPTURE, kRate, rec_kCh, rec_kFmt, kPeriodFrames);
+  int ret = i2s_open_config(&record_thread_info.capture, MIC_DEV,
+                            SND_PCM_STREAM_CAPTURE, kRate, rec_kCh, rec_kFmt,
+                            kPeriodFrames);
   pthread_mutex_unlock(&s_record_mutex);
 
   if (ret < 0) {
@@ -474,7 +483,8 @@ StatusCode i2s_start_recording()
 StatusCode i2s_record_to_file(const char *dir_path, double seconds)
 {
   snd_pcm_t *capture = NULL;
-  int ret = i2s_open_config(&capture, MIC_DEV, SND_PCM_STREAM_CAPTURE, kRate, rec_kCh, rec_kFmt, kPeriodFrames);
+  int ret = i2s_open_config(&capture, MIC_DEV, SND_PCM_STREAM_CAPTURE, kRate,
+                            rec_kCh, rec_kFmt, kPeriodFrames);
 
   if (ret < 0) {
     return STATUS_CODE_FAILED;
@@ -486,8 +496,7 @@ StatusCode i2s_record_to_file(const char *dir_path, double seconds)
 
   char filepath[512];
   int n = snprintf(filepath, sizeof(filepath),
-                   "%s/rec_%04d-%02d-%02d_%02d-%02d-%02d.pcm",
-                   dir_path,
+                   "%s/rec_%04d-%02d-%02d_%02d-%02d-%02d.pcm", dir_path,
                    tm_now.tm_year + 1900, tm_now.tm_mon + 1, tm_now.tm_mday,
                    tm_now.tm_hour, tm_now.tm_min, tm_now.tm_sec);
 
@@ -620,7 +629,9 @@ StatusCode i2s_play_raw(const uint8_t *data, const size_t data_size)
 
   free(playback_thread_info.data);
   playback_thread_info.playback = NULL;
-  int ret = i2s_open_config(&playback_thread_info.playback, SPEAKER_DEV, SND_PCM_STREAM_PLAYBACK, kRate, pb_kCh, pb_kFmt, kPeriodFrames);
+  int ret = i2s_open_config(&playback_thread_info.playback, SPEAKER_DEV,
+                            SND_PCM_STREAM_PLAYBACK, kRate, pb_kCh, pb_kFmt,
+                            kPeriodFrames);
   if (ret < 0) {
     pthread_mutex_unlock(&s_playback_mutex);
     return STATUS_CODE_FAILED;
@@ -652,7 +663,8 @@ StatusCode i2s_play_raw(const uint8_t *data, const size_t data_size)
   playback_thread_info.bytes_per_frame = bytes_per_frame;
   pthread_mutex_unlock(&s_playback_mutex);
 
-  printf("Playing raw PCM: (rate=%u ch=%u fmt=%s)\n", kRate, pb_kCh, snd_pcm_format_name(pb_kFmt));
+  printf("Playing raw PCM: (rate=%u ch=%u fmt=%s)\n", kRate, pb_kCh,
+         snd_pcm_format_name(pb_kFmt));
 
   // start thread
   atomic_store(&is_playback_active, true);

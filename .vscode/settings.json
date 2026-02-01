@@ -1,6 +1,11 @@
 {
+    "[c]": {
+        "editor.defaultFormatter": "zachflower.uncrustify"
+    },
     "editor.defaultFormatter": "zachflower.uncrustify",
     "editor.formatOnSave": true,
+    "uncrustify.config": "${workspaceFolder}/uncrustify.cfg",
+    "uncrustify.path": "/usr/bin/uncrustify",    
     "files.associations": {
         "stdio.h": "c",
         "gpio.h": "c",
