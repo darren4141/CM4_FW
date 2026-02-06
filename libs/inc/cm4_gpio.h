@@ -6,8 +6,10 @@
 /* Hardware library Headers*/
 #include <fcntl.h>
 #include <gpiod.h>
+#include <poll.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -99,32 +101,32 @@ StatusCode gpio_read(int pin, int *state);
  */
 StatusCode gpio_toggle(int pin);
 
-StatusCode gpio_event_init(GpioEvent *ge, uint8_t line_num, GpioEdge edge,
-                           const char *consumer);
+// StatusCode gpio_event_init(GpioEvent *ge, uint8_t line_num, GpioEdge edge,
+// const char *consumer);
+
+///**
+// * timeout_ms = -1 waits forever
+// */
+// StatusCode gpio_event_wait(GpioEvent *ge, int timeout_ms);
+
+// StatusCode gpio_event_read(GpioEvent *ge, struct gpiod_line_event *out);
+
+// StatusCode gpio_event_close(GpioEvent *ge);
 
 /**
- * timeout_ms = -1 waits forever
+ * Set the edge action of a specified gpio pin
  */
-StatusCode gpio_event_wait(GpioEvent *ge, int timeout_ms);
+StatusCode gpio_set_edge(int pin, GpioEdge edge);
 
-StatusCode gpio_event_read(GpioEvent *ge, struct gpiod_line_event *out);
+/**
+ * Get the edge state of a specified gpio pin, only works if the pin has been
+ * configured with gpio_set_edge
+ */
+StatusCode gpio_get_edge_event(int pin, int *event);
 
-StatusCode gpio_event_close(GpioEvent *ge);
-
-///**
-// * Set the edge action of a specified gpio pin
-// */
-// StatusCode gpio_set_edge(int pin, GpioEdge edge);
-
-///**
-// * Get the edge state of a specified gpio pin, only works if the pin has been
-// * configured with gpio_set_edge
-// */
-// StatusCode gpio_get_edge_event(int pin, int *event);
-
-///**
-// * Clear the edge state of a specified gpio pin, only works if the pin has
-// been
-// * configured with gpio_set_edge
-// */
-// StatusCode gpio_clear_edge(int pin);
+/**
+ * Clear the edge state of a specified gpio pin, only works if the pin has
+   been
+ * configured with gpio_set_edge
+ */
+StatusCode gpio_clear_edge(int pin);

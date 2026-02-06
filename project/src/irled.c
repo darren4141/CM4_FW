@@ -8,6 +8,7 @@ static StatusCode irled_read_reg(uint8_t reg, uint8_t *val);
 #define IRLED_READ_REG(reg, val) irled_read_reg(reg, val);
 
 static pthread_t int_edge_thread;
+static pthread_t raw_record_thread;
 static atomic_bool is_thread_running = false;
 static struct timespec ts = {
   .tv_sec = IRLED_THREAD_PERIOD_NS / NSEC_PER_SEC,
@@ -16,18 +17,24 @@ static struct timespec ts = {
 
 static void *int_edge_thread_func(void *arg);
 static StatusCode max30102_read_fifo_to_buffer();
+static void *hr_calc_thread_func(void *arg);
+static void *irled_raw_record_thread_func(void *arg);
+static void *hr_sleep_thread_func(void *arg);
 
 static Max30102Sample s_buffer[MAX30102_BUFFER_SIZE];
 static volatile uint16_t s_head = 0;
 static volatile uint16_t s_tail = 0;
 static pthread_mutex_t s_buffer_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static GpioEvent gev_int1;
+// static GpioEvent gev_int1;
 
 static pthread_cond_t s_buffer_cv = PTHREAD_COND_INITIALIZER;
 
 static pthread_t hr_calc_thread;
-static atomic_bool is_hr_thread_running = false;
+static pthread_t hr_sleep_thread;
+
+static atomic_bool is_active_hr_thread_running = false;
+static atomic_bool is_sleep_hr_thread_running = false;
 static atomic_bool is_raw_record_thread_running = false;
 
 static atomic_int s_bpm = 0;
@@ -38,6 +45,8 @@ static uint16_t irled_pop_multiple(Max30102Sample *out, uint16_t max_n);
 static atomic_bool new_hb = false;
 
 static VerbosityLevel verbosity = VERBOSITY_NONE;
+
+static IrledState_e current_irled_state;
 
 static StatusCode irled_read_reg(uint8_t reg, uint8_t *val)
 {
@@ -51,50 +60,6 @@ static StatusCode irled_read_reg(uint8_t reg, uint8_t *val)
 
   *val = read_buf;
   return STATUS_CODE_OK;
-}
-
-static void *int_edge_thread_func(void *arg)
-{
-  (void)arg;
-
-  while (atomic_load(&is_thread_running)) {
-
-    StatusCode wait_for_edge = gpio_event_wait(&gev_int1, 200);
-
-    if (wait_for_edge == STATUS_CODE_TIMEOUT) {   // We timed out, so re-loop
-      continue;
-    }
-
-    if (wait_for_edge < 0) {
-      VERB1_PRINTF("gpio_event_wait error: %d\n", wait_for_edge);
-      break;
-    }
-
-    // ACK
-    struct gpiod_line_event ev;
-    int rc = gpio_event_read(&gev_int1, &ev);
-    if (rc < 0) {
-      VERB1_PRINTF("gpio_event_read error: %d\n", rc);
-      continue;
-    }
-
-    VERB1_PRINTF("interrupt triggered\n");
-
-    if (ev.event_type == GPIOD_LINE_EVENT_FALLING_EDGE) {
-      uint8_t status = 0;
-      IRLED_READ_REG(MX_IS1, &status);
-
-      if (status & IS1_A_FULL) {
-        StatusCode ret = max30102_read_fifo_to_buffer();
-      }
-      else {
-        printf("Warning: interrupt fired with invalid status: %d\n", status);
-      }
-    }
-  }
-
-  printf("exiting int thread\n");
-  return NULL;
 }
 
 static StatusCode max30102_read_fifo_to_buffer(void)
@@ -163,188 +128,6 @@ static uint16_t irled_buffer_count_unsafe(void)
   return (uint16_t)(MAX30102_BUFFER_SIZE - (s_tail - s_head));
 }
 
-static void *hr_calc_thread_func(void *arg)
-{
-
-  VERB1_PRINTF("HR calc thread starting...\n");
-  (void)arg;
-  Max30102Sample block[256];
-
-#define IBI_BUF 8
-  uint32_t ibi_samples[IBI_BUF] = {0};
-  uint8_t ibi_head = 0;
-  uint8_t ibi_count = 0;
-
-  float prev = 0.0f;
-  float prev2 = 0.0f;
-  float noise_est = 1.0f;
-  float threshold = 0.0f;
-  uint32_t last_peak_idx = 0;
-  uint32_t sample_idx = 0;
-
-  /**
-   * Alpha EMA calculation:
-   * Time constant = 1/alpha = 150
-   * Sample rate is 100Hz
-   * 150 / 100Hz = 1.5 which is well over the min heart rate ~= 50bpm = 1.25s
-   * Therefore HR = AC component will be ignored by the EMA
-   * If sample rate changes we must readjust alpha_ema
-   */
-  float alpha_ema = 0.05f;
-  float dc = 0.0f;
-  float fast_bpf = 0.0f;
-  float slow_bpf = 0.0f;
-
-  /**
-   * alpha BPF calculation:
-   * TC = 1 / alpha * sample_rate
-   * TCfast = 1 / (0.04 * 100) =  -> 0.25s -> 240 BPM
-   * TCslow = 1 / (0.006 * 100) = 1.666s -> 36 BPM
-   */
-  float alpha_fast = 0.04f;
-  float alpha_slow = 0.00001f;
-
-  float alpha_smoothing = 0.1f;
-
-  float alpha_threshold = 0.05;
-
-  uint32_t ibi_min = (uint32_t)(HR_SMPL_HZ * 60.0f / 200.0f);
-  uint32_t ibi_max = (uint32_t)(HR_SMPL_HZ * 60.0f / 40.0f);
-
-  VERB2_PRINTF("ibi_min: %u, ibi_max: %u\n", ibi_min, ibi_max);
-
-  // uint32_t count = 0;
-
-  while (atomic_load(&is_hr_thread_running)) {
-    uint16_t n =
-      irled_pop_multiple(block, (uint16_t)(sizeof(block) / sizeof(block[0])));
-    // count += n;
-
-    // printf("nc: %u\n", count);
-    // time_t current_time;
-
-    // current_time = time(NULL);
-
-    // printf("Current time is %s", ctime(&current_time));
-
-    if (n == 0) {
-      struct timespec ts = {0, 1000000};
-      nanosleep(&ts, NULL);
-      continue;
-    }
-
-    for (uint16_t i = 0; i < n; i++) {
-      float val = (float)block[i].ir;
-      VERB3_PRINTF("%f \n", val);
-
-      // Step 1: EMA
-      dc = dc + alpha_ema * (val - dc);
-
-      float ac = val - dc;
-      VERB3_PRINTF("AC:%f ", ac);
-
-      // Step 2: BPF
-      fast_bpf = fast_bpf + alpha_fast * (ac - fast_bpf);
-      slow_bpf = slow_bpf + alpha_slow * (ac - slow_bpf);
-
-      float bp = fast_bpf - slow_bpf;
-      VERB3_PRINTF("BPF:%f ", bp);
-
-      // Step 3: smoothing
-      float y = prev + alpha_smoothing * (bp - prev);
-      VERB3_PRINTF("Smooth:%f ", y);
-
-      // Step 4: update thresholding
-      noise_est = noise_est + alpha_threshold * (y - noise_est);
-      threshold = 1.0f * noise_est;
-
-      VERB3_PRINTF("Threshold:%f\n", threshold);
-
-      // Step 5: process if local max
-      bool local_max = ((prev > prev2) && (prev > y));
-      bool above_thresh = (fabsf(prev) > threshold);
-      if (local_max && above_thresh) {
-        VERB1_PRINTF("detected peak\n");
-        if (last_peak_idx == 0) {
-          VERB2_PRINTF("First peak detected, index: %u\n", sample_idx);
-          last_peak_idx = sample_idx;
-        }
-        else {
-          uint32_t ibi = sample_idx - last_peak_idx;
-          VERB2_PRINTF("%u", ibi);
-
-          // Store up to IBI_BUF vals in a ring buffer
-          if ((ibi >= ibi_min) && (ibi <= ibi_max)) {
-            last_peak_idx = sample_idx;
-
-            ibi_samples[ibi_head] = ibi;
-            ibi_head = (ibi_head + 1) % IBI_BUF;
-            if (ibi_count < IBI_BUF) {
-              ibi_count++;
-            }
-
-            uint32_t tmp[IBI_BUF];
-            for (uint8_t k = 0; k < ibi_count; k++) {
-              tmp[k] = ibi_samples[k];
-            }
-
-            // Take the median of the ring buffer
-            for (uint8_t a = 1; a < ibi_count; a++) {
-              uint32_t key = tmp[a];
-              int b = a - 1;
-              while (b >= 0 && tmp[b] > key) {
-                tmp[b + 1] = tmp[b];
-                b--;
-              }
-              tmp[b + 1] = key;
-            }
-            uint32_t median = tmp[ibi_count / 2];
-
-            float bpm = 60.0f * HR_SMPL_HZ / (float)median;
-
-            atomic_store(&s_bpm, (int)(bpm));
-            atomic_store(&new_hb, true);
-            VERB1_PRINTF(
-              "-------------------------HB----------------------------\n");
-          }
-          else if (ibi >= ibi_min) {
-            last_peak_idx = sample_idx;
-          }
-        }
-      }
-      prev2 = prev;
-      prev = y;
-      sample_idx++;
-    }
-  }
-
-  printf("Exiting hr calculation thread\n");
-  return NULL;
-}
-
-static void *irled_raw_record_thread_func(void *arg)
-{
-  while (atomic_load(&is_raw_record_thread_running) == true) {
-    (void)arg;
-    Max30102Sample block[256];
-
-    uint16_t n =
-      irled_pop_multiple(block, (uint16_t)(sizeof(block) / sizeof(block[0])));
-
-    if (n == 0) {
-      struct timespec ts = {0, 1000000};
-      nanosleep(&ts, NULL);
-      continue;
-    }
-
-    for (uint16_t i = 0; i < n; i++) {
-      printf("%u\n", block[i]);
-    }
-  }
-  printf("Exiting irled raw record thread\n");
-  return NULL;
-}
-
 StatusCode irled_init()
 {
   StatusCode ret = STATUS_CODE_OK;
@@ -404,9 +187,6 @@ StatusCode irled_init()
   IRLED_WRITE_REG(MX_OVF_COUNTER, 0x00);
   IRLED_WRITE_REG(MX_FIFO_RD_PTR, 0x00);
 
-  IRLED_WRITE_REG(MX_SPO2_CONFIG, SPO2_CONFIG_ADC_RGE_4096
-                  | SPO2_CONFIG_SAMPLE_RT_400
-                  | SPO2_CONFIG_LED_PW_18);
 
   IRLED_WRITE_REG(MX_LED1_PULSE_AMP, 0x3C);
   IRLED_WRITE_REG(MX_LED2_PULSE_AMP, 0x3C);
@@ -414,14 +194,62 @@ StatusCode irled_init()
   IRLED_WRITE_REG(MX_IE1, IE1_A_FULL_EN);
   IRLED_WRITE_REG(MX_MODE_CONFIG, MODE_CONFIG_SPO2_MODE);
 
-  ret =
-    gpio_event_init(gev_int1, INT_GPIO_PIN_1, GPIO_EDGE_FALLING, "IRLED_INT");
+  IRLED_WRITE_REG(MX_SPO2_CONFIG, SPO2_CONFIG_ADC_RGE_4096
+                  | SPO2_CONFIG_SAMPLE_RT_400
+                  | SPO2_CONFIG_LED_PW_18);
+
+// ret =
+// gpio_event_init(gev_int1, INT_GPIO_PIN_1, GPIO_EDGE_FALLING, "IRLED_INT");
   if (ret != STATUS_CODE_OK) {
     printf("gpio_event_init() failed\n");
     return ret;
   }
 
   return STATUS_CODE_OK;
+}
+
+static StatusCode irled_enter_sleep_state()
+{
+// Configure a lower sample rate
+  IRLED_WRITE_REG(MX_SPO2_CONFIG, SPO2_CONFIG_ADC_RGE_4096
+                  | SPO2_CONFIG_SAMPLE_RT_50
+                  | SPO2_CONFIG_LED_PW_18);
+
+// Optional: Configure a different sample averaging rate
+  IRLED_WRITE_REG(MX_FIFO_CONFIG, FIFO_CONFIG_SAMPLE_AVERAGE_4
+                  | FIFO_CONFIG_ROLLOVER_EN
+                  | FIFO_CONFIG_A_FULL_4_SAMPLES);
+
+  if (atomic_load(&is_active_hr_thread_running)) {
+    atomic_store(&is_active_hr_thread_running, false);
+    pthread_join(hr_calc_thread, NULL);
+  }
+
+  if (atomic_load(&is_sleep_hr_thread_running) == false) {
+    atomic_store(&is_sleep_hr_thread_running, true);
+    int threadRet =
+      pthread_create(&hr_sleep_thread, NULL, hr_sleep_thread_func, NULL);
+    if (threadRet != 0) {
+      atomic_store(&is_sleep_hr_thread_running, false);
+      return STATUS_CODE_THREAD_FAILURE;
+    }
+  }
+
+  current_irled_state = IRLED_STATE_SLEEPING;
+  return STATUS_CODE_OK;
+}
+
+static StatusCode irled_enter_active_state()
+{
+// Configure a lower sample rate
+  IRLED_WRITE_REG(MX_SPO2_CONFIG, SPO2_CONFIG_ADC_RGE_4096
+                  | SPO2_CONFIG_SAMPLE_RT_50
+                  | SPO2_CONFIG_LED_PW_18);
+
+// Optional: Configure a different sample averaging rate
+  IRLED_WRITE_REG(MX_FIFO_CONFIG, FIFO_CONFIG_SAMPLE_AVERAGE_4
+                  | FIFO_CONFIG_ROLLOVER_EN
+                  | FIFO_CONFIG_A_FULL_4_SAMPLES);
 }
 
 StatusCode irled_deinit()
@@ -431,8 +259,8 @@ StatusCode irled_deinit()
     pthread_join(int_edge_thread, NULL);
   }
 
-  if (atomic_load(&is_hr_thread_running)) {
-    atomic_store(&is_hr_thread_running, false);
+  if (atomic_load(&is_active_hr_thread_running)) {
+    atomic_store(&is_active_hr_thread_running, false);
     pthread_join(hr_calc_thread, NULL);
   }
 
@@ -459,11 +287,11 @@ StatusCode irled_start_reading()
 
 StatusCode irled_start_calculation_thread()
 {
-  atomic_store(&is_hr_thread_running, true);
+  atomic_store(&is_active_hr_thread_running, true);
   int threadRet =
     pthread_create(&hr_calc_thread, NULL, hr_calc_thread_func, NULL);
   if (threadRet != 0) {
-    atomic_store(&is_hr_thread_running, false);
+    atomic_store(&is_active_hr_thread_running, false);
     return STATUS_CODE_THREAD_FAILURE;
   }
 
@@ -472,10 +300,10 @@ StatusCode irled_start_calculation_thread()
 
 StatusCode irled_start_raw_record_thread()
 {
-  // initialize file writing
+// initialize file writing
 
   atomic_store(&is_raw_record_thread_running, true);
-  int threadRet = pthread_create(&is_raw_record_thread_running, NULL,
+  int threadRet = pthread_create(&raw_record_thread, NULL,
                                  irled_raw_record_thread_func, NULL);
   if (threadRet != 0) {
     atomic_store(&is_raw_record_thread_running, false);
@@ -488,7 +316,7 @@ StatusCode irled_start_raw_record_thread()
 StatusCode irled_stop_reading(void)
 {
   if ((!atomic_load(&is_thread_running))
-      && (!atomic_load(&is_hr_thread_running))) {
+      && (!atomic_load(&is_active_hr_thread_running))) {
     return STATUS_CODE_OK;
   }
 
@@ -496,17 +324,17 @@ StatusCode irled_stop_reading(void)
     printf("stopping int thread\n");
     atomic_store(&is_thread_running, false);
     pthread_join(int_edge_thread, NULL);
-    gpio_event_close(&g_int1_ev);
+// gpio_event_close(&g_int1_ev);
   }
 
-  // Wake up hr thread if it's blocked in cond_wait
+// Wake up hr thread if it's blocked in cond_wait
   pthread_mutex_lock(&s_buffer_mutex);
   pthread_cond_broadcast(&s_buffer_cv);
   pthread_mutex_unlock(&s_buffer_mutex);
 
-  if (atomic_load(&is_hr_thread_running)) {
+  if (atomic_load(&is_active_hr_thread_running)) {
     printf("stopping hr calc thread\n");
-    atomic_store(&is_hr_thread_running, false);
+    atomic_store(&is_active_hr_thread_running, false);
     pthread_join(hr_calc_thread, NULL);
   }
 
@@ -575,4 +403,238 @@ void irled_set_verbosity_level(VerbosityLevel new_verbosity)
 {
   verbosity = new_verbosity;
   printf("Set verbosity level to %u\n", verbosity);
+}
+
+
+static void *int_edge_thread_func(void *arg)
+{
+  (void)arg;
+
+// while (atomic_load(&is_thread_running)) {
+
+// StatusCode wait_for_edge = gpio_event_wait(&gev_int1, 200);
+
+// if (wait_for_edge == STATUS_CODE_TIMEOUT) {   // We timed out, so re-loop
+// continue;
+// }
+
+// if (wait_for_edge < 0) {
+// VERB1_PRINTF("gpio_event_wait error: %d\n", wait_for_edge);
+// break;
+// }
+
+//// ACK
+// struct gpiod_line_event ev;
+// int rc = gpio_event_read(&gev_int1, &ev);
+// if (rc < 0) {
+// VERB1_PRINTF("gpio_event_read error: %d\n", rc);
+// continue;
+// }
+
+// VERB1_PRINTF("interrupt triggered\n");
+
+// if (ev.event_type == GPIOD_LINE_EVENT_FALLING_EDGE) {
+// uint8_t status = 0;
+// IRLED_READ_REG(MX_IS1, &status);
+
+// if (status & IS1_A_FULL) {
+// StatusCode ret = max30102_read_fifo_to_buffer();
+// }
+// else {
+// printf("Warning: interrupt fired with invalid status: %d\n", status);
+// }
+// }
+// }
+
+  printf("exiting int thread\n");
+  return NULL;
+}
+
+static void *hr_sleep_thread_func(void *arg)
+{
+  (void)arg;
+  VERB1_PRINTF("HR sleep thread starting...\n");
+
+  while (atomic_load(&is_sleep_hr_thread_running)) {
+    struct timespec ts_1s = {1, 0};   // 1 s
+    nanosleep(&ts_1s, NULL);
+
+/* Wait for signal to exit sleep function */
+    bool signal_detected = false;
+
+    if (signal_detected) {
+    }
+  }
+}
+
+static void *hr_calc_thread_func(void *arg)
+{
+
+  VERB1_PRINTF("HR calc thread starting...\n");
+  (void)arg;
+  Max30102Sample block[256];
+
+#define IBI_BUF 8
+  uint32_t ibi_samples[IBI_BUF] = {0};
+  uint8_t ibi_head = 0;
+  uint8_t ibi_count = 0;
+
+  float prev = 0.0f;
+  float prev2 = 0.0f;
+  float noise_est = 1.0f;
+  float threshold = 0.0f;
+  uint32_t last_peak_idx = 0;
+  uint32_t sample_idx = 0;
+
+/**
+ * Alpha EMA calculation:
+ * Time constant = 1/alpha = 150
+ * Sample rate is 100Hz
+ * 150 / 100Hz = 1.5 which is well over the min heart rate ~= 50bpm = 1.25s
+ * Therefore HR = AC component will be ignored by the EMA
+ * If sample rate changes we must readjust alpha_ema
+ */
+  float alpha_ema = 0.05f;
+  float dc = 0.0f;
+  float fast_bpf = 0.0f;
+  float slow_bpf = 0.0f;
+
+/**
+ * alpha BPF calculation:
+ * TC = 1 / alpha * sample_rate
+ * TCfast = 1 / (0.04 * 100) =  -> 0.25s -> 240 BPM
+ * TCslow = 1 / (0.006 * 100) = 1.666s -> 36 BPM
+ */
+  float alpha_fast = 0.04f;
+  float alpha_slow = 0.00001f;
+
+  float alpha_smoothing = 0.1f;
+
+  float alpha_threshold = 0.05;
+
+  uint32_t ibi_min = (uint32_t)(HR_SMPL_HZ * 60.0f / 200.0f);
+  uint32_t ibi_max = (uint32_t)(HR_SMPL_HZ * 60.0f / 40.0f);
+
+  VERB2_PRINTF("ibi_min: %u, ibi_max: %u\n", ibi_min, ibi_max);
+
+  while (atomic_load(&is_active_hr_thread_running)) {
+    uint16_t n =
+      irled_pop_multiple(block, (uint16_t)(sizeof(block) / sizeof(block[0])));
+
+    if (n == 0) {
+      struct timespec ts_1ms = {0, 1000000};   // 1 ms
+      nanosleep(&ts_1ms, NULL);
+      continue;
+    }
+
+    for (uint16_t i = 0; i < n; i++) {
+      float val = (float)block[i].ir;
+      VERB3_PRINTF("%f \n", val);
+
+// Step 1: EMA
+      dc = dc + alpha_ema * (val - dc);
+
+      float ac = val - dc;
+      VERB3_PRINTF("AC:%f ", ac);
+
+// Step 2: BPF
+      fast_bpf = fast_bpf + alpha_fast * (ac - fast_bpf);
+      slow_bpf = slow_bpf + alpha_slow * (ac - slow_bpf);
+
+      float bp = fast_bpf - slow_bpf;
+      VERB3_PRINTF("BPF:%f ", bp);
+
+// Step 3: smoothing
+      float y = prev + alpha_smoothing * (bp - prev);
+      VERB3_PRINTF("Smooth:%f ", y);
+
+// Step 4: update thresholding
+      noise_est = noise_est + alpha_threshold * (y - noise_est);
+      threshold = 1.0f * noise_est;
+
+      VERB3_PRINTF("Threshold:%f\n", threshold);
+
+// Step 5: process if local max
+      bool local_max = ((prev > prev2) && (prev > y));
+      bool above_thresh = (fabsf(prev) > threshold);
+      if (local_max && above_thresh) {
+        VERB1_PRINTF("detected peak\n");
+        if (last_peak_idx == 0) {
+          VERB2_PRINTF("First peak detected, index: %u\n", sample_idx);
+          last_peak_idx = sample_idx;
+        }
+        else {
+          uint32_t ibi = sample_idx - last_peak_idx;
+          VERB2_PRINTF("%u", ibi);
+
+// Store up to IBI_BUF vals in a ring buffer
+          if ((ibi >= ibi_min) && (ibi <= ibi_max)) {
+            last_peak_idx = sample_idx;
+
+            ibi_samples[ibi_head] = ibi;
+            ibi_head = (ibi_head + 1) % IBI_BUF;
+            if (ibi_count < IBI_BUF) {
+              ibi_count++;
+            }
+
+            uint32_t tmp[IBI_BUF];
+            for (uint8_t k = 0; k < ibi_count; k++) {
+              tmp[k] = ibi_samples[k];
+            }
+
+// Take the median of the ring buffer
+            for (uint8_t a = 1; a < ibi_count; a++) {
+              uint32_t key = tmp[a];
+              int b = a - 1;
+              while (b >= 0 && tmp[b] > key) {
+                tmp[b + 1] = tmp[b];
+                b--;
+              }
+              tmp[b + 1] = key;
+            }
+            uint32_t median = tmp[ibi_count / 2];
+
+            float bpm = 60.0f * HR_SMPL_HZ / (float)median;
+
+            atomic_store(&s_bpm, (int)(bpm));
+            atomic_store(&new_hb, true);
+            VERB1_PRINTF(
+              "-------------------------HB----------------------------\n");
+          }
+          else if (ibi >= ibi_min) {
+            last_peak_idx = sample_idx;
+          }
+        }
+      }
+      prev2 = prev;
+      prev = y;
+      sample_idx++;
+    }
+  }
+
+  printf("Exiting hr calculation thread\n");
+  return NULL;
+}
+
+static void *irled_raw_record_thread_func(void *arg)
+{
+  while (atomic_load(&is_raw_record_thread_running) == true) {
+    (void)arg;
+    Max30102Sample block[256];
+
+    uint16_t n =
+      irled_pop_multiple(block, (uint16_t)(sizeof(block) / sizeof(block[0])));
+
+    if (n == 0) {
+      struct timespec ts = {0, 1000000};
+      nanosleep(&ts, NULL);
+      continue;
+    }
+
+    for (uint16_t i = 0; i < n; i++) {
+      printf("%u\n", block[i]);
+    }
+  }
+  printf("Exiting irled raw record thread\n");
+  return NULL;
 }

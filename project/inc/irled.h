@@ -101,16 +101,9 @@ typedef struct {
 } Max30102Sample;
 
 typedef enum {
-  IRLED_STATE_WATING,
-  IRLED_STATE_CALIB,
-  IRLED_STATE_STABLE
+  IRLED_STATE_SLEEPING = 0,
+  IRLED_STATE_READING  = 1
 } IrledState_e;
-
-typedef struct {
-  IrledState_e state;
-  bool newReading;
-  uint8_t reading;
-} IrledReading_s;
 
 /**
  * Initialize irled sensor

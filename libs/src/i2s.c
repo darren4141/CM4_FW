@@ -386,12 +386,12 @@ StatusCode i2s_init()
     return STATUS_CODE_THREAD_FAILURE;
   }
 
-  atomic_store(&is_record_thread_running, true);
-  threadRet = pthread_create(&record_thread, NULL, record_thread_func, NULL);
-  if (threadRet != 0) {
-    atomic_store(&is_record_thread_running, false);
-    return STATUS_CODE_THREAD_FAILURE;
-  }
+  // atomic_store(&is_record_thread_running, true);
+  // threadRet = pthread_create(&record_thread, NULL, record_thread_func, NULL);
+  // if (threadRet != 0) {
+  // atomic_store(&is_record_thread_running, false);
+  // return STATUS_CODE_THREAD_FAILURE;
+  // }
 
   return STATUS_CODE_OK;
 }
