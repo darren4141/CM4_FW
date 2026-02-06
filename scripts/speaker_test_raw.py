@@ -13,7 +13,7 @@ def main():
     
     _here = os.path.dirname(os.path.abspath(__file__))
 
-    _aud_path = os.path.join(_here, "audio", "test_record.pcm")
+    _aud_path = os.path.join(_here, "audio", "good_morning.pcm")
         
     if not os.path.isfile(_aud_path):
         raise FileNotFoundError(_aud_path)

@@ -34,8 +34,8 @@
 #define I2_WAITING_PERIOD_S 1 / 10
 #define REC_RB_SIZE         (1u << 20)
 
-#define MIC_DEV             "plughw:0,0"
-#define SPEAKER_DEV         "plughw:0,1"
+#define MIC_DEV             "plughw:2,0"
+#define SPEAKER_DEV         "plughw:2,1"
 
 /**
  * Initialize i2s bus
